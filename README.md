@@ -12,7 +12,7 @@ This recognition highlighted a fundamental healthcare challenge: **the lack of a
 
 ### **Technical Vision**
 
-This project was developed with the goal of democratizing cardiovascular risk assessment through cutting-edge statistical methods. Healthcare decisions benefit from understanding the range of possible outcomes and the uncertainty inherent in predictions. By leveraging Bayesian statistics, PredictRisk provides not just predictions, but **credible intervals** that communicate this uncertainty effectively.
+This project was developed with the goal of democratizing cardiovascular risk assessment through cutting-edge statistical methods. Healthcare decisions benefit from understanding the range of possible outcomes and the uncertainty inherent in predictions. By leveraging Bayesian statistics, PredictRisk provides comprehensive risk predictions with **credible intervals** that communicate this uncertainty effectively.
 
 **Key Objectives:**
 - **Address the critical gap in early cardiovascular risk detection** by creating accessible assessment tools
@@ -38,12 +38,15 @@ This project was developed with the goal of democratizing cardiovascular risk as
 - **Generation Method**: Statistical simulation using numpy random sampling from normal and binomial distributions with clinically plausible parameter ranges
 
 ### **Bayesian Logistic Regression Framework**
-The application employs **Bayesian logistic regression models** implemented through the Bambi library (Built on PyMC). Each cardiovascular condition is modeled independently using:
+The application employs **Bayesian logistic regression models** implemented through the Bambi library (Built on PyMC). This represents a **methodologically sophisticated approach** to cardiovascular risk assessment. Each cardiovascular condition is modeled independently using:
 
 - **Model Family**: Bernoulli likelihood with logit link function
 - **Sampling Method**: No-U-Turn Sampler (NUTS) with four chains
 - **Posterior Estimation**: 1,000 draws per chain after 1,000 tuning steps
 - **Convergence Diagnostics**: R-hat statistics and effective sample size monitoring
+- **Synthetic Data Foundation**: Statistically generated dataset using clinically plausible parameter distributions
+
+**Key Methodological Innovation**: This Bayesian framework provides full posterior distributions for risk assessment, enabling probabilistic inference with explicit uncertainty quantification through credible intervals.
 
 ### **Predictor Variables**
 The synthetic dataset contains 18 variables, but each Bayesian model uses a subset of 11 evidence-based risk factors:
@@ -71,6 +74,18 @@ All models undergo rigorous validation:
 - Models are trained on synthetic data and require validation on real clinical datasets
 - Performance metrics reflect synthetic data characteristics, not real-world clinical outcomes
 - Clinical applicability pending validation studies with actual patient data
+
+## 🔬 Methodological Approach
+
+**PredictRisk employs advanced Bayesian statistical methods for cardiovascular risk assessment:**
+
+- **Bayesian Statistical Foundation**: Uses sophisticated probabilistic modeling for risk prediction
+- **Uncertainty Quantification**: Provides 95% credible intervals and full posterior distributions
+- **Synthetic Data Methodology**: Built on statistically simulated data with transparent generation process
+- **Open-Source Implementation**: Complete methodological transparency with reproducible code
+- **Educational Focus**: Designed as proof-of-concept for Bayesian risk modeling techniques
+
+This approach demonstrates the potential of Bayesian methods in healthcare applications with full uncertainty quantification.
 
 ## 🤝 Collaboration & Enhancement Opportunities
 
