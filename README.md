@@ -12,7 +12,7 @@ This recognition highlighted a fundamental healthcare challenge: **the lack of a
 
 ### **Technical Vision**
 
-This project was developed with the goal of democratizing cardiovascular risk assessment through cutting-edge statistical methods. Traditional risk calculators often provide point estimates without quantifying uncertainty, but healthcare decisions benefit from understanding the range of possible outcomes. By leveraging Bayesian statistics, PredictRisk provides not just predictions, but **credible intervals** that communicate the uncertainty inherent in risk assessment.
+This project was developed with the goal of democratizing cardiovascular risk assessment through cutting-edge statistical methods. Healthcare decisions benefit from understanding the range of possible outcomes and the uncertainty inherent in predictions. By leveraging Bayesian statistics, PredictRisk provides not just predictions, but **credible intervals** that communicate this uncertainty effectively.
 
 **Key Objectives:**
 - **Address the critical gap in early cardiovascular risk detection** by creating accessible assessment tools
@@ -56,7 +56,7 @@ The synthetic dataset contains 18 variables, but each Bayesian model uses a subs
 *Note: Additional variables in the dataset (HDL/LDL cholesterol, triglycerides, diet score, family history) are available for future model enhancements.*
 
 ### **Uncertainty Quantification**
-Unlike traditional point estimates, our Bayesian approach provides:
+Our Bayesian approach provides:
 - **Posterior predictive distributions** for individual risk assessment
 - **95% credible intervals** representing uncertainty in predictions
 - **Full posterior samples** enabling rich probabilistic inference
@@ -80,7 +80,6 @@ This project represents the foundation of what could become a powerful tool for 
 - **Validation studies using real clinical datasets** (highest priority need)
 - Integration of additional biomarkers or genetic risk factors
 - Clinical workflow integration and usability studies
-- Comparative analysis with established risk calculators (Framingham, ASCVD, etc.)
 - **External validation on diverse patient populations**
 
 ### **Data Scientists & Statisticians**
