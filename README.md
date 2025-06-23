@@ -6,16 +6,16 @@ A comprehensive Bayesian machine learning application for predicting cardiovascu
 
 ### **Personal Motivation**
 
-This project stems from a deeply personal experience that shaped my understanding of cardiovascular risk awareness. Watching my father struggle with the consequences of **late-detected hypertension** was a profound wake-up call. Like many people, he was unaware of his elevated cardiovascular risk until it was almost too late. The "silent killer" nature of hypertension meant that by the time symptoms appeared, significant damage had already occurred.
+This project stems from recognizing a critical gap in cardiovascular risk awareness and prevention. The reality that many individuals remain unaware of their elevated cardiovascular risk until clinical intervention becomes critical represents a significant challenge in modern healthcare. The "silent killer" nature of conditions like hypertension means that by the time symptoms appear, significant damage may have already occurred.
 
-This experience highlighted a critical gap in healthcare: **the lack of accessible, personalized risk assessment tools** that could have provided early warning signs. Too often, people remain unaware of their cardiovascular risk until they face a medical emergency. I realized that if we could democratize access to sophisticated risk prediction and make it as easy as checking the weather, we could save lives through early intervention and lifestyle modifications.
+This recognition highlighted a fundamental healthcare challenge: **the lack of accessible, personalized risk assessment tools** that could provide early warning signs and enable preventive action. Too often, people remain unaware of their cardiovascular risk until they face a medical emergency. I realized that if we could democratize access to sophisticated risk prediction and make it as easy as checking the weather, we could save lives through early intervention and lifestyle modifications.
 
 ### **Technical Vision**
 
 This project was developed with the goal of democratizing cardiovascular risk assessment through cutting-edge statistical methods. Traditional risk calculators often provide point estimates without quantifying uncertainty, but healthcare decisions benefit from understanding the range of possible outcomes. By leveraging Bayesian statistics, PredictRisk provides not just predictions, but **credible intervals** that communicate the uncertainty inherent in risk assessment.
 
 **Key Objectives:**
-- **Honor my father's experience** by creating tools that could prevent others from facing similar late-stage diagnoses
+- **Address the critical gap in early cardiovascular risk detection** by creating accessible assessment tools
 - Bridge the gap between complex statistical models and practical healthcare applications
 - Demonstrate the power of Bayesian inference in medical risk prediction
 - Provide transparent, interpretable risk assessments with uncertainty quantification
