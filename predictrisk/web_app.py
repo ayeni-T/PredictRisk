@@ -319,13 +319,11 @@ class PredictRiskApp:
         - Seek immediate medical attention if experiencing symptoms
         """)
         
-        # Footer
+        # Simple footer without links
         st.markdown("""
         ---
         <div style='text-align: center; color: #666; font-size: 0.9em;'>
-        © 2025 Taiwo Michael Ayeni | Northeastern University<br>
-        <a href='https://github.com/ayeni-T/PredictRisk'>View Source Code</a> | 
-        <a href='https://github.com/ayeni-T/PredictRisk/issues'>Report Issues</a>
+        © 2025 Taiwo Michael Ayeni | Northeastern University
         </div>
         """, unsafe_allow_html=True)
     
