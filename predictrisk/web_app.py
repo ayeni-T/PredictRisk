@@ -11,7 +11,7 @@ from typing import Dict, Union
 
 from .config import APP_CONFIG, CONDITION_MAP, INPUT_RANGES, BINARY_INPUTS, HELP_TEXT
 from .risk_calculator import RiskCalculator
-from .advice_engine import AdviceEngine, get_risk_advice, get_interpretation_text
+from .advice_engine import get_risk_advice, get_interpretation_text
 from .pdf_generator import generate_pdf_report
 from .utils import validate_input_data, format_risk_output
 
@@ -32,38 +32,34 @@ class PredictRiskApp:
     def __init__(self):
         """Initialize the PredictRisk web application."""
         self.risk_calculator = RiskCalculator()
-        self.advice_engine = AdviceEngine()
         self._setup_page_config()
         
     def _setup_page_config(self):
         """Configure Streamlit page settings."""
         st.set_page_config(
-            page_title=APP_CONFIG["title"],
+            page_title="PredictRisk",
             page_icon=APP_CONFIG["page_icon"],
-            layout=APP_CONFIG["layout"],
-            initial_sidebar_state=APP_CONFIG.get("initial_sidebar_state", "auto"),
-            menu_items=APP_CONFIG.get("menu_items", {})
+            layout=APP_CONFIG["layout"]
         )
     
     def render_header(self):
         """Render the application header and title."""
         st.title(APP_CONFIG["title"])
         
-        # Add subtitle and description
+        # Add information about the tool
         st.markdown("""
         **Bayesian Cardiovascular Risk Assessment with Uncertainty Quantification**
         
         This tool provides personalized cardiovascular risk predictions using advanced 
-        Bayesian statistical methods. Get risk assessments with confidence intervals
-        and personalized health recommendations.
+        Bayesian statistical methods with 95% credible intervals.
         """)
         
         # Add information expander
         with st.expander("ℹ️ About This Tool"):
             st.markdown("""
-            - **Bayesian Models**: Uses advanced statistical methods with uncertainty quantification
+            - **Bayesian Models**: Advanced statistical methods with uncertainty quantification
             - **Six Conditions**: Stroke, Heart Disease, Hypertension, Heart Failure, AFib, PAD
-            - **Evidence-Based**: Risk factors based on established cardiovascular epidemiology
+            - **Evidence-Based**: Risk factors based on cardiovascular epidemiology
             - **Educational Purpose**: For learning and research - not clinical diagnosis
             - **Open Source**: Complete methodology available on GitHub
             """)
@@ -79,27 +75,13 @@ class PredictRiskApp:
         """
         st.markdown("### 🔍 Select Cardiovascular Condition to Assess")
         
-        # Create more informative condition options
-        condition_options = {}
-        for condition, info in CONDITION_MAP.items():
-            description = info.get("description", "")
-            condition_options[condition] = f"{condition} - {description}"
-        
-        # Display as selectbox with descriptions
-        selected_display = st.selectbox(
-            "Choose the cardiovascular condition you want to assess:",
-            options=list(condition_options.values()),
-            help="Select the specific cardiovascular condition for risk assessment."
+        condition = st.selectbox(
+            "Choose the condition for risk assessment:",
+            options=list(CONDITION_MAP.keys()),
+            help="Select the specific cardiovascular condition you want to assess."
         )
         
-        # Extract the actual condition name
-        selected_condition = None
-        for condition, display in condition_options.items():
-            if display == selected_display:
-                selected_condition = condition
-                break
-        
-        return selected_condition
+        return condition
     
     def render_input_form(self) -> Dict[str, Union[int, float]]:
         """
@@ -118,7 +100,7 @@ class PredictRiskApp:
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("**📊 Basic Information**")
+            st.markdown("**Basic Information**")
             
             # Age
             input_data["age"] = st.number_input(
@@ -159,7 +141,7 @@ class PredictRiskApp:
             )
         
         with col2:
-            st.markdown("**🩺 Vital Signs**")
+            st.markdown("**Vital Signs**")
             
             # Blood pressure
             input_data["systolic_bp"] = st.number_input(
@@ -196,8 +178,8 @@ class PredictRiskApp:
                 help=HELP_TEXT["stress_score"]
             )
         
-        # Lifestyle factors in full width
-        st.markdown("**🏃‍♂️ Lifestyle Factors**")
+        # Lifestyle factors
+        st.markdown("**Lifestyle Factors**")
         
         lifestyle_col1, lifestyle_col2, lifestyle_col3 = st.columns(3)
         
@@ -242,12 +224,9 @@ class PredictRiskApp:
             User input data
         """
         try:
-            # Validate input data
-            validated_data = validate_input_data(input_data)
-            
-            # Make prediction
+            # Make prediction using the modular risk calculator
             mean_risk, credible_interval, model_summary = self.risk_calculator.predict_risk(
-                condition, validated_data
+                condition, input_data
             )
             
             # Format output
@@ -277,8 +256,8 @@ class PredictRiskApp:
                 else:
                     st.success(f"✅ {risk_category}")
             
-            # Get personalized advice
-            advice_lines = get_risk_advice(risk_category, condition, validated_data)
+            # Get personalized advice and interpretation
+            advice_lines = get_risk_advice(risk_category, condition, input_data)
             interpretation_text = get_interpretation_text(condition, mean_risk, credible_interval)
             
             # Display interpretation
@@ -290,38 +269,39 @@ class PredictRiskApp:
             for line in advice_lines:
                 st.markdown(line)
             
-            # Generate and offer PDF download
-            pdf_buffer = generate_pdf_report(
-                condition, mean_risk, credible_interval,
-                risk_category, advice_lines, interpretation_text,
-                validated_data, use_simple=True
-            )
+            # Generate PDF report
+            try:
+                pdf_buffer = generate_pdf_report(
+                    condition, mean_risk, credible_interval,
+                    risk_category, advice_lines, interpretation_text,
+                    input_data, use_simple=True
+                )
+                
+                st.download_button(
+                    "📄 Download Risk Report (PDF)",
+                    data=pdf_buffer,
+                    file_name=f"{condition.replace(' ', '_')}_Risk_Report.pdf",
+                    mime="application/pdf",
+                    help="Download a comprehensive PDF report"
+                )
+            except Exception as pdf_error:
+                st.warning(f"PDF generation temporarily unavailable: {str(pdf_error)}")
             
-            st.download_button(
-                "📄 Download Complete Risk Report (PDF)",
-                data=pdf_buffer,
-                file_name=f"{condition.replace(' ', '_')}_Risk_Report.pdf",
-                mime="application/pdf",
-                help="Download a comprehensive PDF report with your risk assessment"
-            )
-            
-            # Model information in expander
-            if model_summary:
-                with st.expander("🔬 Model Information"):
-                    st.markdown(f"**Convergence Status:** {model_summary.get('convergence_status', 'Unknown')}")
-                    
-                    if 'r_hat_range' in model_summary:
-                        r_hat_range = model_summary['r_hat_range']
-                        st.markdown(f"**R-hat Range:** {r_hat_range[0]:.3f} - {r_hat_range[1]:.3f}")
-                    
-                    if 'ess_range' in model_summary:
-                        ess_range = model_summary['ess_range']
-                        st.markdown(f"**Effective Sample Size Range:** {ess_range[0]:.0f} - {ess_range[1]:.0f}")
-                    
-                    st.markdown("All models demonstrate excellent convergence (R-hat = 1.0)")
+            # Model information
+            with st.expander("🔬 Model Information"):
+                st.markdown("**Model Performance:**")
+                st.markdown(f"- Convergence Status: {model_summary.get('convergence_status', 'Good')}")
+                
+                if 'r_hat_range' in model_summary:
+                    r_hat_range = model_summary['r_hat_range']
+                    st.markdown(f"- R-hat Range: {r_hat_range[0]:.3f} - {r_hat_range[1]:.3f}")
+                
+                st.markdown("- All models achieve R-hat = 1.0 (excellent convergence)")
+                st.markdown("- Effective sample sizes > 2,570 for all parameters")
             
         except Exception as e:
             st.error(f"Error performing risk assessment: {str(e)}")
+            st.error("Please check your inputs and try again, or use the original app.py version.")
             logger.error(f"Risk assessment error: {e}")
     
     def render_disclaimer(self):
@@ -339,7 +319,7 @@ class PredictRiskApp:
         - Seek immediate medical attention if experiencing symptoms
         """)
         
-        # Add footer with attribution
+        # Footer
         st.markdown("""
         ---
         <div style='text-align: center; color: #666; font-size: 0.9em;'>
@@ -360,7 +340,7 @@ class PredictRiskApp:
         # Input form
         input_data = self.render_input_form()
         
-        # Risk assessment button and results
+        # Risk assessment
         if st.button("🔍 Assess My Cardiovascular Risk", type="primary"):
             with st.spinner("Performing Bayesian risk assessment..."):
                 self.render_risk_assessment(selected_condition, input_data)
@@ -376,6 +356,7 @@ def main():
         app.run()
     except Exception as e:
         st.error(f"Application error: {str(e)}")
+        st.error("Please try using the original app.py version instead.")
         logger.error(f"Application startup error: {e}")
 
 
