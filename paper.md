@@ -14,7 +14,7 @@ authors:
     orcid: 0000-0002-6823-1417
     affiliation: 1
 affiliations:
- - name: Northeastern University, College of Professional Studies Analytics, Toronto, Canada
+ - name: Northeastern University, College of Professional Studies, Analytics, Toronto, Canada
    index: 1
 date: 25 June 2025
 bibliography: paper.bib
@@ -58,6 +58,6 @@ The project roadmap includes clinical validation through healthcare collaboratio
 
 # Acknowledgments
 
-The author thanks the open-source community, particularly the PyMC, Bambi, ArviZ, and Streamlit development teams. Special recognition goes to Northeastern University for providing the academic environment that supported this research.
+The author thanks the open-source community, particularly the PyMC, Bambi, ArviZ, and Streamlit development teams. Special recognition goes to the College of Professional Studies, Northeastern University, Toronto, Canada, for providing the academic environment that supported this research.
 
 # References
