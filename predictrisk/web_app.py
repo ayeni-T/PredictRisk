@@ -323,7 +323,7 @@ class PredictRiskApp:
         st.markdown("""
         ---
         <div style='text-align: center; color: #666; font-size: 0.9em;'>
-        © 2025 Taiwo Michael Ayeni | Northeastern University
+        © 2025 Taiwo Michael Ayeni
         </div>
         """, unsafe_allow_html=True)
     
