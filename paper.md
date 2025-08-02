@@ -15,7 +15,7 @@ authors:
     orcid: 0000-0002-6823-1417
     affiliation: 1
 affiliations:
- - name: Northeastern University, College of Professional Studies Analytics, Toronto, Canada
+ - name: Northeastern University, College of Professional Studies, Analytics, Toronto, Canada
    index: 1
 date: 01 August 2025
 bibliography: paper.bib
@@ -82,7 +82,7 @@ Unlike similar health informatics packages, PredictRisk provides unique technica
 - **Uncertainty Quantification Focus**: Every prediction includes full posterior distributions and credible intervals
 - **Synthetic Data Integration**: Complete data generation framework with realistic correlations for educational and research applications
 - **Modular Architecture**: Professional package structure enabling easy extension and integration
-- **Research-Education Bridge**: Designed specifically for both practical applications and methodological education
+- **Research-Education Bridge**: Explicitly designed for both practical applications and methodological education
 
 ## Overview of Features
 
@@ -90,7 +90,7 @@ Unlike similar health informatics packages, PredictRisk provides unique technica
 
 • **Comprehensive Uncertainty Quantification**: Unlike deterministic risk calculators, every prediction includes full posterior distributions, 95% credible intervals, and detailed uncertainty analysis. The framework provides multiple confidence levels and statistical summaries.
 
-• **Professional Web Interface**: The Streamlit-based interface provides intuitive user experience with real-time validation, educational tooltips, and responsive design. The interface supports both individual assessments and educational demonstrations.
+• **Professional Web Interface**: The Streamlit-based interface provides an intuitive user experience with real-time validation, educational tooltips, and responsive design. The interface supports both individual assessments and educational demonstrations.
 
 • **Advanced Report Generation**: PredictRisk automatically generates comprehensive PDF reports with professional formatting, risk visualization, personalized recommendations, and educational content. Reports can be customized for different use cases.
 
@@ -137,7 +137,7 @@ The Bayesian models undergo rigorous validation:
 
 ## Open Source Development
 
-PredictRisk embraces professional open source development practices. The project is hosted on GitHub (https://github.com/ayeni-T/PredictRisk) under the MIT License, ensuring broad accessibility and enabling community contributions. The modular architecture facilitates collaborative development with clear module boundaries and comprehensive documentation.
+PredictRisk embraces professional open-source development practices. The project is hosted on GitHub (https://github.com/ayeni-T/PredictRisk) under the MIT License, ensuring broad accessibility and enabling community contributions. The modular architecture facilitates collaborative development with clear module boundaries and comprehensive documentation.
 
 ## Contributing Framework
 
@@ -146,7 +146,7 @@ The package provides multiple pathways for community engagement:
 - **Bug Reports and Feature Requests**: GitHub Issues system for community feedback
 - **Code Contributions**: Pull request workflow for improvements, new features, and bug fixes
 - **Clinical Validation**: Collaboration framework for validation studies using real clinical datasets
-- **Model Extensions**: Architecture supports addition of new cardiovascular conditions and risk factors
+- **Model Extensions**: Architecture supports the addition of new cardiovascular conditions and risk factors
 - **Documentation Enhancement**: Community contributions to user guides, tutorials, and API documentation
 - **Educational Applications**: Framework for developing teaching materials and case studies
 
@@ -223,6 +223,6 @@ predictrisk-app
 
 # Acknowledgments
 
-The author thanks the open-source community, particularly the PyMC, Bambi, ArviZ, and Streamlit development teams for providing the foundational tools that enabled this work. Special recognition goes to Northeastern University for providing the academic environment and resources that supported this research.
+The author thanks the open-source community, particularly the PyMC, Bambi, ArviZ, and Streamlit development teams, for providing the foundational tools that enabled this work. Special recognition goes to Northeastern University for providing the academic environment and resources that supported this research.
 
 # References
