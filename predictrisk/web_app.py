@@ -61,7 +61,6 @@ class PredictRiskApp:
             - **Six Conditions**: Stroke, Heart Disease, Hypertension, Heart Failure, AFib, PAD
             - **Evidence-Based**: Risk factors based on cardiovascular epidemiology
             - **Educational Purpose**: For learning and research - not clinical diagnosis
-            - **Open Source**: Complete methodology available on GitHub
             """)
     
     def render_condition_selector(self) -> str:
@@ -286,18 +285,6 @@ class PredictRiskApp:
                 )
             except Exception as pdf_error:
                 st.warning(f"PDF generation temporarily unavailable: {str(pdf_error)}")
-            
-            # Model information
-            with st.expander("🔬 Model Information"):
-                st.markdown("**Model Performance:**")
-                st.markdown(f"- Convergence Status: {model_summary.get('convergence_status', 'Good')}")
-                
-                if 'r_hat_range' in model_summary:
-                    r_hat_range = model_summary['r_hat_range']
-                    st.markdown(f"- R-hat Range: {r_hat_range[0]:.3f} - {r_hat_range[1]:.3f}")
-                
-                st.markdown("- All models achieve R-hat = 1.0 (excellent convergence)")
-                st.markdown("- Effective sample sizes > 2,570 for all parameters")
             
         except Exception as e:
             st.error(f"Error performing risk assessment: {str(e)}")
