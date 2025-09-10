@@ -1,0 +1,10 @@
+{
+  "conditions": [
+    "stroke",
+    "heart_disease",
+    "hypertension",
+    "heart_failure",
+    "afib",
+    "pad"
+  ]
+}
