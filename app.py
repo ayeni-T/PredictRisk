@@ -19,12 +19,31 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 
 LOGO_CANDIDATES = [
-    BASE_DIR / "logo.png",
-    BASE_DIR / "assets" / "logo.png",
-    BASE_DIR / "static" / "logo.png",
+    BASE_DIR / "logo.png",             # repo root
+    BASE_DIR / "assets" / "logo.png",  # optional fallback
+    BASE_DIR / "static" / "logo.png",  # optional fallback
 ]
 
-ARTIFACT_DIR = BASE_DIR / "artifacts"
+ARTIFACT_DIR = BASE_DIR / "artifacts"  # holds the six *.npz only
+
+def find_logo():
+    for p in LOGO_CANDIDATES:
+        if p.exists():
+            return str(p)  # Streamlit/ReportLab expect str
+    return None
+
+logo_path_str = find_logo()
+
+# Example usage:
+import streamlit as st
+st.set_page_config(
+    page_title="PredictRisk: Cardiovascular Diagnostic Tool",
+    page_icon=logo_path_str or "🧠",  # works with a path or emoji
+    layout="centered",
+)
+if logo_path_str:
+    st.image(logo_path_str, use_container_width=True)
+
 
 # --------------------------- Logo detection ---------------------------
 LOGO_CANDIDATES = [Path("logo.png"), Path("assets/logo.png"), Path("static/logo.png")]
