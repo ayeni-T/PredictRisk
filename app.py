@@ -14,8 +14,7 @@ from datetime import datetime
 from textwrap import wrap
 import io
 
-from pathlib import Path
-
+# ---------- Paths & version ----------
 BASE_DIR = Path(__file__).resolve().parent
 
 LOGO_CANDIDATES = [
@@ -23,7 +22,6 @@ LOGO_CANDIDATES = [
     BASE_DIR / "assets" / "logo.png",  # optional fallback
     BASE_DIR / "static" / "logo.png",  # optional fallback
 ]
-
 ARTIFACT_DIR = BASE_DIR / "artifacts"  # holds the six *.npz only
 
 def find_logo():
@@ -34,32 +32,16 @@ def find_logo():
 
 logo_path_str = find_logo()
 
-# Example usage:
-import streamlit as st
+# Read version from VERSION file (falls back to "dev" if missing)
+try:
+    APP_VERSION = (BASE_DIR / "VERSION").read_text().strip()
+except Exception:
+    APP_VERSION = "dev"
+
+# ---------- Page setup ----------
 st.set_page_config(
     page_title="PredictRisk: Cardiovascular Diagnostic Tool",
     page_icon=logo_path_str or "🧠",  # works with a path or emoji
-    layout="centered",
-)
-if logo_path_str:
-    st.image(logo_path_str, use_container_width=True)
-
-
-# --------------------------- Logo detection ---------------------------
-LOGO_CANDIDATES = [Path("logo.png"), Path("assets/logo.png"), Path("static/logo.png")]
-
-def get_logo_path_str():
-    for p in LOGO_CANDIDATES:
-        if p.exists():
-            return str(p)
-    return None
-
-logo_path_str = get_logo_path_str()
-
-# --------------------------- Page setup ---------------------------
-st.set_page_config(
-    page_title="PredictRisk: Cardiovascular Diagnostic Tool",
-    page_icon=logo_path_str if logo_path_str else "🧠",
     layout="centered",
 )
 
@@ -83,9 +65,6 @@ if logo_path_str:
         st.title("PredictRisk: Cardiovascular Diagnostic Tool")
 else:
     st.title("🧠 PredictRisk: Cardiovascular Diagnostic Tool")
-
-
-ARTIFACT_DIR = Path("artifacts")
 
 CONDITIONS = {
     "Stroke": "stroke",
@@ -112,7 +91,6 @@ def load_artifact(cond_key: str):
     except Exception:
         order = [str(x) for x in order_arr]
     # Optional: cache Cholesky for faster sampling (invisible to users)
-    # We keep cov as-is for simplicity; you can uncomment below if desired:
     # L = np.linalg.cholesky(0.5*(cov+cov.T) + np.eye(len(mu))*1e-8).astype("float32")
     # return mu, cov, order, L
     return mu, cov, order
@@ -491,273 +469,278 @@ required_cats = [sex, smoking_status_lbl, alcohol_use_lbl, physical_activity,
                  family_history_heart, diabetes_history, kidney_disease, substance_abuse]
 all_required = all(v is not None for v in required_nums + required_cats)
 
-if not all_required:
+st.markdown("—")
+go = st.button("🔴 Assess Risk", type="primary", use_container_width=True)
+
+if not all_required and go:
     st.warning("Please complete all fields (numbers and selections) before assessing.")
-else:
-    if st.button("🔍 Assess Risk", type="primary"):
-        # Collect symptoms
-        selected_symptoms = []
-        for name, flag in [
-            ("chest_pain", chest_pain), ("severe_chest_pain", severe_chest_pain),
-            ("shortness_breath", shortness_breath), ("difficulty_breathing", difficulty_breathing),
-            ("palpitations", palpitations), ("dizziness", dizziness), ("fainting", fainting),
-            ("leg_swelling", leg_swelling), ("persistent_cough", persistent_cough),
-            ("face_droop", face_droop), ("slurred_speech", slurred_speech), ("weak_limb", weak_limb),
-            ("cold_sweat", cold_sweat), ("sudden_sweating", sudden_sweating),
-            ("lightheadedness", lightheadedness), ("orthopnea", orthopnea), ("claudication", claudication),
-        ]:
-            if flag: selected_symptoms.append(name)
 
-        urgency, reasons, tags = assess_clinical_urgency_enhanced(
-            int(systolic_bp), int(diastolic_bp), int(heart_rate), selected_symptoms
-        )
+if all_required and go:
+    # Collect symptoms
+    selected_symptoms = []
+    for name, flag in [
+        ("chest_pain", chest_pain), ("severe_chest_pain", severe_chest_pain),
+        ("shortness_breath", shortness_breath), ("difficulty_breathing", difficulty_breathing),
+        ("palpitations", palpitations), ("dizziness", dizziness), ("fainting", fainting),
+        ("leg_swelling", leg_swelling), ("persistent_cough", persistent_cough),
+        ("face_droop", face_droop), ("slurred_speech", slurred_speech), ("weak_limb", weak_limb),
+        ("cold_sweat", cold_sweat), ("sudden_sweating", sudden_sweating),
+        ("lightheadedness", lightheadedness), ("orthopnea", orthopnea), ("claudication", claudication),
+    ]:
+        if flag: selected_symptoms.append(name)
 
-        smoke_map = {"Never": 0, "Former": 1, "Current": 2}
-        alcohol_map = {"None": 0, "Moderate": 1, "Excessive": 2}
-        smoke_cat = smoke_map[smoking_status_lbl]
-        alcohol_cat = alcohol_map[alcohol_use_lbl]
+    urgency, reasons, tags = assess_clinical_urgency_enhanced(
+        int(systolic_bp), int(diastolic_bp), int(heart_rate), selected_symptoms
+    )
 
-        bmi_val = (weight_kg / (height_m ** 2)) if (height_m and weight_kg) else 0.0
-        base = {
-            "age": float(age),
-            "sex": 1.0 if sex == "Male" else 0.0,
-            "bmi": float(bmi_val),
-            "physical_activity": 1.0 if physical_activity == "Yes" else 0.0,
-            "systolic_bp": float(systolic_bp),
-            "diastolic_bp": float(diastolic_bp),
-            "heart_rate": float(heart_rate),
-            "sleep_hours": float(sleep_hours),
-            "stress_score": float(stress_score),
-            "family_history_heart_disease": 1.0 if family_history_heart == "Yes" else 0.0,
-            "diabetes_history": 1.0 if diabetes_history == "Yes" else 0.0,
-            "kidney_disease": 1.0 if kidney_disease == "Yes" else 0.0,
-            "substance_abuse": 1.0 if substance_abuse == "Yes" else 0.0,
-        }
+    smoke_map = {"Never": 0, "Former": 1, "Current": 2}
+    alcohol_map = {"None": 0, "Moderate": 1, "Excessive": 2}
+    smoke_cat = smoke_map[smoking_status_lbl]
+    alcohol_cat = alcohol_map[alcohol_use_lbl]
 
-        mu, cov, order = load_artifact(CONDITIONS[condition_label])
-        x_vec = np.array([value_for_feature(name, base, smoke_cat, alcohol_cat) for name in order], dtype="float32")
-        mean_p, lo, hi = predict_prob(mu, cov, x_vec, draws=5000)
-        cat, cat_color = risk_category(mean_p)
+    bmi_val = (weight_kg / (height_m ** 2)) if (height_m and weight_kg) else 0.0
+    base = {
+        "age": float(age),
+        "sex": 1.0 if sex == "Male" else 0.0,
+        "bmi": float(bmi_val),
+        "physical_activity": 1.0 if physical_activity == "Yes" else 0.0,
+        "systolic_bp": float(systolic_bp),
+        "diastolic_bp": float(diastolic_bp),
+        "heart_rate": float(heart_rate),
+        "sleep_hours": float(sleep_hours),
+        "stress_score": float(stress_score),
+        "family_history_heart_disease": 1.0 if family_history_heart == "Yes" else 0.0,
+        "diabetes_history": 1.0 if diabetes_history == "Yes" else 0.0,
+        "kidney_disease": 1.0 if kidney_disease == "Yes" else 0.0,
+        "substance_abuse": 1.0 if substance_abuse == "Yes" else 0.0,
+    }
 
-        # Overall recommendation
-        rec_text, rec_color = overall_recommendation(urgency, cat)
-        if rec_color == "red": st.error(rec_text)
-        elif rec_color == "orange": st.warning(rec_text)
-        elif rec_color == "gold": st.info(rec_text)
-        else: st.success(rec_text)
+    mu, cov, order = load_artifact(CONDITIONS[condition_label])
+    x_vec = np.array([value_for_feature(name, base, smoke_cat, alcohol_cat) for name in order], dtype="float32")
+    mean_p, lo, hi = predict_prob(mu, cov, x_vec, draws=5000)
+    cat, cat_color = risk_category(mean_p)
 
-        # Side-by-side panels
-        left, right = st.columns(2)
-        with left:
-            icons = {"routine": "🟢", "urgent": "🟡", "emergency": "🔴"}
-            st.subheader("Safety Check (independent of risk)")
-            st.markdown(f"**Clinical Urgency:** {icons.get(urgency,'⚪')} {urgency.upper()}")
-            st.caption("Safety Check recommends how quickly to seek care; the risk score is for the selected condition only.")
-            if reasons: st.caption("Reasons: " + "; ".join(reasons))
+    # Overall recommendation
+    rec_text, rec_color = overall_recommendation(urgency, cat)
+    if rec_color == "red": st.error(rec_text)
+    elif rec_color == "orange": st.warning(rec_text)
+    elif rec_color == "gold": st.info(rec_text)
+    else: st.success(rec_text)
 
-        with right:
-            st.subheader(f"Condition Risk — {condition_label}")
-            st.metric("Risk Score", f"{mean_p*100:.1f}%")
-            st.markdown(f"**Probability:** {mean_p:.1%}")
-            st.markdown(f"**95% Credible Interval:** [{lo:.1%}, {hi:.1%}]")
-            st.progress(min(max(int(round(mean_p * 100)), 0), 100))
-            if cat == "High": st.error("Risk Category: **HIGH**")
-            elif cat == "Moderate": st.warning("Risk Category: **MODERATE**")
-            else: st.success("Risk Category: **LOW**")
+    # Side-by-side panels
+    left, right = st.columns(2)
+    with left:
+        icons = {"routine": "🟢", "urgent": "🟡", "emergency": "🔴"}
+        st.subheader("Safety Check (independent of risk)")
+        st.markdown(f"**Clinical Urgency:** {icons.get(urgency,'⚪')} {urgency.upper()}")
+        st.caption("Safety Check recommends how quickly to seek care; the risk score is for the selected condition only.")
+        if reasons: st.caption("Reasons: " + "; ".join(reasons))
 
-            # Optional lightweight explainability (hidden unless expanded)
-            with st.expander("Explain my score (optional)"):
-                # simple top drivers by |mu_i * x_i| (excluding Intercept)
-                names = []
-                vals = []
-                for name, beta, x in zip(order, mu, x_vec):
-                    if name.lower() == "intercept": 
-                        continue
-                    contrib = abs(float(beta) * float(x))
-                    names.append(name); vals.append(contrib)
-                if vals:
-                    top_idx = np.argsort(vals)[::-1][:3]
-                    st.caption("Top factors contributing to the score:")
-                    for i in top_idx:
-                        st.write(f"- {names[i].replace('C(','').replace(')','').replace('[T.1]','').replace('[T.2]','')}")
+    with right:
+        st.subheader(f"Condition Risk — {condition_label}")
+        st.metric("Risk Score", f"{mean_p*100:.1f}%")
+        st.markdown(f"**Probability:** {mean_p:.1%}")
+        st.markdown(f"**95% Credible Interval:** [{lo:.1%}, {hi:.1%}]")
+        st.progress(min(max(int(round(mean_p * 100)), 0), 100))
+        if cat == "High": st.error("Risk Category: **HIGH**")
+        elif cat == "Moderate": st.warning("Risk Category: **MODERATE**")
+        else: st.success("Risk Category: **LOW**")
+
+        # Optional lightweight explainability (hidden unless expanded)
+        with st.expander("Explain my score (optional)"):
+            # simple top drivers by |mu_i * x_i| (excluding Intercept)
+            names = []
+            vals = []
+            for name, beta, x in zip(order, mu, x_vec):
+                if name.lower() == "intercept": 
+                    continue
+                contrib = abs(float(beta) * float(x))
+                names.append(name); vals.append(contrib)
+            if vals:
+                top_idx = np.argsort(vals)[::-1][:3]
+                st.caption("Top factors contributing to the score:")
+                for i in top_idx:
+                    st.write(f"- {names[i].replace('C(','').replace(')','').replace('[T.1]','').replace('[T.2]','')}")
+            else:
+                st.caption("No contributing factors to display.")
+
+    if urgency in ("urgent", "emergency") and cat == "Low":
+        st.info("Why ‘Urgent’ with a low risk score? Safety Check uses vitals and red-flag symptoms to recommend how quickly to seek care. The risk score estimates the chance of this specific condition only. They are independent checks.")
+
+    # Guidance (condition-specific + factors)
+    st.subheader("Clinical Guidance & Next Steps")
+    bp_cat_now, _, _ = categorize_bp(int(systolic_bp), int(diastolic_bp))
+    hr_cat_now, _, _ = categorize_hr(int(heart_rate))
+    guidance = compose_guidance(
+        cond_key=cond_key,
+        urgency=urgency,
+        risk_cat=cat,
+        bp_cat=bp_cat_now,
+        hr_cat=hr_cat_now,
+        bmi=bmi_val,
+        smoke_cat=smoke_cat,
+        alcohol_cat=alcohol_cat,
+        physical_active_flag=base["physical_activity"],
+        selected_symptoms=selected_symptoms,
+        histories={
+            "diabetes": bool(base["diabetes_history"]),
+            "kidney": bool(base["kidney_disease"]),
+            "family_history": bool(base["family_history_heart_disease"]),
+        },
+    )
+    for g in guidance: st.markdown(f"- {g}")
+    st.caption("This tool supports awareness and early care-seeking. It does not diagnose conditions.")
+
+    # --------------------------- PDF Report ---------------------------
+    def build_pdf_bytes(rec_text_in):
+        try:
+            from reportlab.lib.pagesizes import letter
+            from reportlab.pdfgen import canvas
+            from reportlab.lib.utils import ImageReader
+        except Exception as e:
+            return None, f"ReportLab import failed: {e}"
+
+        def draw_wrapped(c, text, x, y, width_chars=110, leading=12):
+            """Draw wrapped text and return new y (page-break safe)."""
+            lines = wrap(text, width_chars)
+            for ln in lines:
+                nonlocal_y_check()
+                c.drawString(x, y, ln); y -= leading
+            return y
+
+        # page-break helper
+        buffer = io.BytesIO()
+        c = canvas.Canvas(buffer, pagesize=letter)
+        width, height = letter
+        margin = 60
+        y = height - margin
+
+        def nonlocal_y_check():
+            nonlocal y
+            if y < margin + 30:
+                c.showPage()
+                y = height - margin
+                # header on new page (logo + title small)
+                if logo_path_str:
+                    try:
+                        c.drawImage(ImageReader(logo_path_str), 40, y - 20, width=40, height=40,
+                                    preserveAspectRatio=True, mask='auto')
+                    except Exception:
+                        pass
+                    c.setFont("Helvetica-Bold", 16); c.drawString(90, y, "PredictRisk: Cardiovascular Diagnostic Tool")
+                    y -= 40
                 else:
-                    st.caption("No contributing factors to display.")
+                    c.setFont("Helvetica-Bold", 18); c.drawString(40, y, "PredictRisk Report"); y -= 30
 
-        if urgency in ("urgent", "emergency") and cat == "Low":
-            st.info("Why ‘Urgent’ with a low risk score? Safety Check uses vitals and red-flag symptoms to recommend how quickly to seek care. The risk score estimates the chance of this specific condition only. They are independent checks.")
+        # Header
+        if logo_path_str:
+            try:
+                c.drawImage(ImageReader(logo_path_str), 40, y - 20, width=40, height=40,
+                            preserveAspectRatio=True, mask='auto')
+            except Exception:
+                pass
+            c.setFont("Helvetica-Bold", 16); c.drawString(90, y, "PredictRisk: Cardiovascular Diagnostic Tool")
+        else:
+            c.setFont("Helvetica-Bold", 18); c.drawString(40, y, "🧠 PredictRisk: Cardiovascular Diagnostic Tool")
+        c.setFont("Helvetica-Bold", 11); c.drawString(40, y - 22, f"Assessment: {condition_label}")
+        c.setFont("Helvetica", 10); c.drawString(300, y - 22, datetime.now().strftime("Date: %Y-%m-%d  Time: %H:%M"))
+        y -= 52
 
-        # Guidance (condition-specific + factors)
-        st.subheader("Clinical Guidance & Next Steps")
-        bp_cat, _, _ = categorize_bp(int(systolic_bp), int(diastolic_bp))
-        hr_cat, _, _ = categorize_hr(int(heart_rate))
-        guidance = compose_guidance(
-            cond_key=cond_key,
-            urgency=urgency,
-            risk_cat=cat,
-            bp_cat=bp_cat,
-            hr_cat=hr_cat,
-            bmi=bmi_val,
-            smoke_cat=smoke_cat,
-            alcohol_cat=alcohol_cat,
-            physical_active_flag=base["physical_activity"],
-            selected_symptoms=selected_symptoms,
+        # Safety Check
+        c.setFont("Helvetica-Bold", 11); c.drawString(40, y, "Safety Check (independent of risk)"); y -= 16
+        c.setFont("Helvetica", 10); y = draw_wrapped(c, f"Clinical Urgency: {urgency.upper()}", 40, y)
+        if reasons:
+            y = draw_wrapped(c, "Reasons: " + "; ".join(reasons), 40, y)
+        bp_cat_pdf, _, bp_note_pdf = categorize_bp(int(systolic_bp), int(diastolic_bp))
+        hr_cat_pdf, _, hr_note_pdf = categorize_hr(int(heart_rate))
+        y = draw_wrapped(c, f"BP: {int(systolic_bp)}/{int(diastolic_bp)} mmHg — {bp_cat_pdf} ({bp_note_pdf})", 40, y)
+        y = draw_wrapped(c, f"Heart Rate: {int(heart_rate)} bpm — {hr_cat_pdf} ({hr_note_pdf})", 40, y)
+        y -= 10
+
+        # Risk
+        c.setFont("Helvetica-Bold", 11); c.drawString(40, y, f"Condition Risk — {condition_label}"); y -= 16
+        c.setFont("Helvetica", 10)
+        y = draw_wrapped(c, f"Risk Score: {mean_p*100:.1f}%  |  Category: {cat}", 40, y)
+        y = draw_wrapped(c, f"Probability: {mean_p:.1%}", 40, y)
+        y = draw_wrapped(c, f"95% Credible Interval: [{lo:.1%}, {hi:.1%}]", 40, y)
+        y -= 10
+
+        # Overall Recommendation
+        c.setFont("Helvetica-Bold", 11); c.drawString(40, y, "Overall Recommendation"); y -= 16
+        c.setFont("Helvetica", 10); y = draw_wrapped(c, rec_text_in, 40, y); y -= 8
+
+        # Input Summary
+        c.setFont("Helvetica-Bold", 11); c.drawString(40, y, "Input Summary"); y -= 16
+        c.setFont("Helvetica", 10)
+        for t in [
+            f"Age {int(age)} • Sex {sex} • BMI {bmi_val:.1f}",
+            f"SBP/DBP {int(systolic_bp)}/{int(diastolic_bp)} mmHg • HR {int(heart_rate)} bpm",
+            f"Smoking: {smoking_status_lbl} • Alcohol: {alcohol_use_lbl} • Active: {physical_activity}",
+            f"Sleep: {sleep_hours} h • Stress: {stress_score}/10",
+            f"Family hx heart disease: {family_history_heart} • Diabetes: {diabetes_history} • CKD: {kidney_disease} • Substance: {substance_abuse}",
+        ]:
+            y = draw_wrapped(c, t, 40, y)
+        y -= 8
+
+        # Guidance
+        c.setFont("Helvetica-Bold", 11); c.drawString(40, y, "Clinical Guidance & Next Steps"); y -= 16
+        c.setFont("Helvetica", 10)
+        guidance_pdf = compose_guidance(
+            cond_key=cond_key, urgency=urgency, risk_cat=cat,
+            bp_cat=bp_cat_pdf, hr_cat=hr_cat_pdf, bmi=bmi_val,
+            smoke_cat={"Never":0,"Former":1,"Current":2}[smoking_status_lbl],
+            alcohol_cat={"None":0,"Moderate":1,"Excessive":2}[alcohol_use_lbl],
+            physical_active_flag=1.0 if physical_activity=="Yes" else 0.0,
+            selected_symptoms=[],  # summarized via urgency/reasons
             histories={
-                "diabetes": bool(base["diabetes_history"]),
-                "kidney": bool(base["kidney_disease"]),
-                "family_history": bool(base["family_history_heart_disease"]),
+                "diabetes": diabetes_history=="Yes",
+                "kidney": kidney_disease=="Yes",
+                "family_history": family_history_heart=="Yes",
             },
         )
-        for g in guidance: st.markdown(f"- {g}")
-        st.caption("This tool supports awareness and early care-seeking. It does not diagnose conditions.")
+        for g in guidance_pdf:
+            y = draw_wrapped(c, "• " + g, 40, y)
 
-        # --------------------------- PDF Report ---------------------------
-        def build_pdf_bytes(rec_text_in):
-            try:
-                from reportlab.lib.pagesizes import letter
-                from reportlab.pdfgen import canvas
-                from reportlab.lib.utils import ImageReader
-            except Exception as e:
-                return None, f"ReportLab import failed: {e}"
+        # Footer: DISCLAIMER ONLY + copyright + version
+        disclaimer = ("PredictRisk provides educational estimates and triage guidance only. "
+                      "It is not a diagnosis and does not replace clinical evaluation. "
+                      "If symptoms are severe or worsening, seek immediate medical care.")
+        c.setFont("Helvetica", 8)
+        foot_lines = wrap(disclaimer, 110)
+        y_footer = 60
+        for i, line in enumerate(foot_lines):
+            c.drawString(40, y_footer + (len(foot_lines)-1-i)*10, line)
+        c.setFont("Helvetica-Oblique", 8)
+        c.drawRightString(width - 40, 40, f"PredictRisk v{APP_VERSION} — © {datetime.now().year} Taiwo Michael Ayeni")
 
-            def draw_wrapped(c, text, x, y, width_chars=110, leading=12):
-                """Draw wrapped text and return new y (page-break safe)."""
-                lines = wrap(text, width_chars)
-                for ln in lines:
-                    nonlocal_y_check()
-                    c.drawString(x, y, ln); y -= leading
-                return y
+        c.showPage(); c.save()
+        pdf = buffer.getvalue(); buffer.close()
+        return pdf, None
 
-            # page-break helper
-            buffer = io.BytesIO()
-            c = canvas.Canvas(buffer, pagesize=letter)
-            width, height = letter
-            margin = 60
-            y = height - margin
-
-            def nonlocal_y_check():
-                nonlocal y
-                if y < margin + 30:
-                    c.showPage()
-                    y = height - margin
-                    # header on new page (logo + title small)
-                    if logo_path_str:
-                        try:
-                            c.drawImage(ImageReader(logo_path_str), 40, y - 20, width=40, height=40,
-                                        preserveAspectRatio=True, mask='auto')
-                        except Exception:
-                            pass
-                        c.setFont("Helvetica-Bold", 16); c.drawString(90, y, "PredictRisk: Cardiovascular Diagnostic Tool")
-                        y -= 40
-                    else:
-                        c.setFont("Helvetica-Bold", 18); c.drawString(40, y, "PredictRisk Report"); y -= 30
-
-            # Header
-            if logo_path_str:
-                try:
-                    c.drawImage(ImageReader(logo_path_str), 40, y - 20, width=40, height=40,
-                                preserveAspectRatio=True, mask='auto')
-                except Exception:
-                    pass
-                c.setFont("Helvetica-Bold", 16); c.drawString(90, y, "PredictRisk: Cardiovascular Diagnostic Tool")
-            else:
-                c.setFont("Helvetica-Bold", 18); c.drawString(40, y, "🧠 PredictRisk: Cardiovascular Diagnostic Tool")
-            c.setFont("Helvetica-Bold", 11); c.drawString(40, y - 22, f"Assessment: {condition_label}")
-            c.setFont("Helvetica", 10); c.drawString(300, y - 22, datetime.now().strftime("Date: %Y-%m-%d  Time: %H:%M"))
-            y -= 52
-
-            # Safety Check
-            c.setFont("Helvetica-Bold", 11); c.drawString(40, y, "Safety Check (independent of risk)"); y -= 16
-            c.setFont("Helvetica", 10); y = draw_wrapped(c, f"Clinical Urgency: {urgency.upper()}", 40, y)
-            if reasons:
-                y = draw_wrapped(c, "Reasons: " + "; ".join(reasons), 40, y)
-            bp_cat_pdf, _, bp_note_pdf = categorize_bp(int(systolic_bp), int(diastolic_bp))
-            hr_cat_pdf, _, hr_note_pdf = categorize_hr(int(heart_rate))
-            y = draw_wrapped(c, f"BP: {int(systolic_bp)}/{int(diastolic_bp)} mmHg — {bp_cat_pdf} ({bp_note_pdf})", 40, y)
-            y = draw_wrapped(c, f"Heart Rate: {int(heart_rate)} bpm — {hr_cat_pdf} ({hr_note_pdf})", 40, y)
-            y -= 10
-
-            # Risk
-            c.setFont("Helvetica-Bold", 11); c.drawString(40, y, f"Condition Risk — {condition_label}"); y -= 16
-            c.setFont("Helvetica", 10)
-            y = draw_wrapped(c, f"Risk Score: {mean_p*100:.1f}%  |  Category: {cat}", 40, y)
-            y = draw_wrapped(c, f"Probability: {mean_p:.1%}", 40, y)
-            y = draw_wrapped(c, f"95% Credible Interval: [{lo:.1%}, {hi:.1%}]", 40, y)
-            y -= 10
-
-            # Overall Recommendation (page-break aware & spaced)
-            c.setFont("Helvetica-Bold", 11); c.drawString(40, y, "Overall Recommendation"); y -= 16
-            c.setFont("Helvetica", 10); y = draw_wrapped(c, rec_text_in, 40, y); y -= 8
-
-            # Input Summary
-            c.setFont("Helvetica-Bold", 11); c.drawString(40, y, "Input Summary"); y -= 16
-            c.setFont("Helvetica", 10)
-            for t in [
-                f"Age {int(age)} • Sex {sex} • BMI {bmi_val:.1f}",
-                f"SBP/DBP {int(systolic_bp)}/{int(diastolic_bp)} mmHg • HR {int(heart_rate)} bpm",
-                f"Smoking: {smoking_status_lbl} • Alcohol: {alcohol_use_lbl} • Active: {physical_activity}",
-                f"Sleep: {sleep_hours} h • Stress: {stress_score}/10",
-                f"Family hx heart disease: {family_history_heart} • Diabetes: {diabetes_history} • CKD: {kidney_disease} • Substance: {substance_abuse}",
-            ]:
-                y = draw_wrapped(c, t, 40, y)
-            y -= 8
-
-            # Guidance
-            c.setFont("Helvetica-Bold", 11); c.drawString(40, y, "Clinical Guidance & Next Steps"); y -= 16
-            c.setFont("Helvetica", 10)
-            guidance_pdf = compose_guidance(
-                cond_key=cond_key, urgency=urgency, risk_cat=cat,
-                bp_cat=bp_cat_pdf, hr_cat=hr_cat_pdf, bmi=bmi_val,
-                smoke_cat={"Never":0,"Former":1,"Current":2}[smoking_status_lbl],
-                alcohol_cat={"None":0,"Moderate":1,"Excessive":2}[alcohol_use_lbl],
-                physical_active_flag=1.0 if physical_activity=="Yes" else 0.0,
-                selected_symptoms=[],  # summarized via urgency/reasons
-                histories={
-                    "diabetes": diabetes_history=="Yes",
-                    "kidney": kidney_disease=="Yes",
-                    "family_history": family_history_heart=="Yes",
-                },
-            )
-            for g in guidance_pdf:
-                y = draw_wrapped(c, "• " + g, 40, y)
-
-            # Footer: DISCLAIMER ONLY + copyright
-            disclaimer = ("PredictRisk provides educational estimates and triage guidance only. "
-                          "It is not a diagnosis and does not replace clinical evaluation. "
-                          "If symptoms are severe or worsening, seek immediate medical care.")
-            c.setFont("Helvetica", 8)
-            # draw footer at fixed bottom area
-            foot_lines = wrap(disclaimer, 110)
-            y_footer = 60
-            for i, line in enumerate(foot_lines):
-                c.drawString(40, y_footer + (len(foot_lines)-1-i)*10, line)
-            c.setFont("Helvetica-Oblique", 8)
-            c.drawRightString(width - 40, 40, f"© {datetime.now().year} Taiwo Michael Ayeni")
-
-            c.showPage(); c.save()
-            pdf = buffer.getvalue(); buffer.close()
-            return pdf, None
-
-        pdf_bytes, pdf_err = build_pdf_bytes(rec_text)
-        if pdf_bytes is None:
-            st.warning(f"PDF not generated: {pdf_err}  — install with:  pip install reportlab")
-        else:
-            st.download_button(
-                label="📄 Download PDF Report",
-                data=pdf_bytes,
-                file_name=f"PredictRisk_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                mime="application/pdf",
-            )
+    pdf_bytes, pdf_err = build_pdf_bytes(rec_text)
+    if pdf_bytes is None:
+        st.warning(f"PDF not generated: {pdf_err}  — install with:  pip install reportlab")
+    else:
+        st.download_button(
+            label="📄 Download PDF Report",
+            data=pdf_bytes,
+            file_name=f"PredictRisk_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+            mime="application/pdf",
+        )
 
 
-            # Launch disclaimer (app only; PDF disclaimer is in footer)
+# Launch disclaimer (shown on app load; PDF disclaimer stays in footer)
 st.info(
     "⚠️ **Disclaimer:** PredictRisk provides educational risk estimates and triage guidance. "
     "It is **not** a diagnosis and does not replace professional medical care. "
     "If symptoms are severe or worsening, seek immediate care."
 )
 
-# Footer copyright
+
+# ---------- Footer copyright + version ----------
 st.markdown(
-    f"<div style='text-align:center; color:#888; margin-top:2rem;'>© {datetime.now().year} Taiwo Michael Ayeni</div>",
+    f"<div style='text-align:center; color:#888; margin-top:2rem;'>"
+    f"PredictRisk v{APP_VERSION} — © {datetime.now().year} Taiwo Michael Ayeni"
+    f"</div>",
     unsafe_allow_html=True,
 )
