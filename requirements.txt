@@ -5,3 +5,5 @@ bambi
 arviz
 pymc
 streamlit
+reportlab
+pillow
