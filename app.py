@@ -5,14 +5,14 @@
 # - Condition-specific guidance (varies by selected condition + risk)
 # - PDF: footer-only disclaimer; fixed spacing; page-break aware
 # - Red "Assess Risk" button
-# - Optional "Explain my score" (hidden unless expanded)
 
-import streamlit as st
-import numpy as np
-from pathlib import Path
-from datetime import datetime
-from textwrap import wrap
 import io
+from datetime import datetime
+from pathlib import Path
+from textwrap import wrap
+
+import numpy as np
+import streamlit as st
 
 # ---------- Paths & version ----------
 BASE_DIR = Path(__file__).resolve().parent
@@ -24,7 +24,7 @@ LOGO_CANDIDATES = [
 ]
 ARTIFACT_DIR = BASE_DIR / "artifacts"  # holds the six *.npz only
 
-def find_logo():
+def find_logo() -> str | None:
     for p in LOGO_CANDIDATES:
         if p.exists():
             return str(p)  # Streamlit/ReportLab expect str
@@ -41,20 +41,22 @@ except Exception:
 # ---------- Page setup ----------
 st.set_page_config(
     page_title="PredictRisk: Cardiovascular Diagnostic Tool",
-    page_icon=logo_path_str or "🧠",  # works with a path or emoji
+    page_icon=logo_path_str or "🧠",
     layout="centered",
 )
 
 # Make the primary button RED
-st.markdown("""
+st.markdown(
+    """
 <style>
-/* Streamlit primary button override */
 div.stButton > button[kind="primary"] { background-color:#d32f2f; color:white; border:0; }
 div.stButton > button[kind="primary"]:hover { background-color:#b71c1c; color:white; }
 div.stButton > button:first-child { background-color:#d32f2f; color:white; border:0; }
 div.stButton > button:first-child:hover { background-color:#b71c1c; color:white; }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # Header
 if logo_path_str:
@@ -90,9 +92,6 @@ def load_artifact(cond_key: str):
         order = [str(x) for x in order_arr.tolist()]
     except Exception:
         order = [str(x) for x in order_arr]
-    # Optional: cache Cholesky for faster sampling (invisible to users)
-    # L = np.linalg.cholesky(0.5*(cov+cov.T) + np.eye(len(mu))*1e-8).astype("float32")
-    # return mu, cov, order, L
     return mu, cov, order
 
 # --------------------------- Helpers ---------------------------
@@ -210,99 +209,41 @@ def overall_recommendation(urgency: str, risk_cat: str):
         return ("Overall Recommendation: Plan a routine check-in and address modifiable risks.", "gold")
     return ("Overall Recommendation: Maintain healthy habits and recheck periodically.", "green")
 
-def pretty_label(raw: str) -> str:
-    """
-    Turn model feature names into readable labels.
-    - Removes C(...) and [T.x] scaffolding
-    - Maps smoking/alcohol dummies to friendly text
-    - Replaces underscores with spaces and Title-Cases
-    """
-    if not isinstance(raw, str):
-        return str(raw)
-
-    n = raw.replace("C(", "").replace(")", "")
-    l = n.lower()
-
-    # Dummy-coded categories
-    if "smok" in l and ("[t.1]" in l or "t.1" in l):
-        return "Former smoker (vs Never)"
-    if "smok" in l and ("[t.2]" in l or "t.2" in l):
-        return "Current smoker (vs Never)"
-    if "alcohol" in l and ("[t.1]" in l or "t.1" in l):
-        return "Moderate alcohol (vs None)"
-    if "alcohol" in l and ("[t.2]" in l or "t.2" in l):
-        return "Excessive alcohol (vs None)"
-
-    # Strip any leftover tags
-    n = n.replace("[T.1]", "").replace("[T.2]", "")
-
-    # Friendly names for common features
-    friendly = {
-        "age": "Age (years)",
-        "sex": "Sex",
-        "bmi": "Body mass index (BMI)",
-        "physical_activity": "Physically active",
-        "systolic_bp": "Systolic BP (mmHg)",
-        "diastolic_bp": "Diastolic BP (mmHg)",
-        "heart_rate": "Heart rate (bpm)",
-        "sleep_hours": "Sleep (hours/night)",
-        "stress_score": "Stress score",
-        "family_history_heart_disease": "Family history of heart disease",
-        "diabetes_history": "Diabetes history",
-        "kidney_disease": "Chronic kidney disease",
-        "substance_abuse": "Substance use",
-        "intercept": "Intercept",
-    }
-    key = n.strip()
-    if key in friendly:
-        return friendly[key]
-
-    # Default: replace underscores and Title-Case
-    return " ".join(w.capitalize() for w in key.replace("_", " ").split())
-
 # --------- Condition-specific guidance (educational, not diagnostic) ----------
 COND_GUIDE = {
     "stroke": {
         "High": [
             "Know FAST signs (Face droop, Arm weakness, Speech trouble); call for emergency care if symptoms occur.",
-            "Discuss blood pressure control and whether antiplatelet therapy is appropriate."
+            "Discuss blood pressure control and whether antiplatelet therapy is appropriate.",
         ],
         "Moderate": [
             "Review blood pressure goals, smoking cessation, and diabetes control with a clinician.",
-            "Learn FAST signs and when to seek urgent care."
+            "Learn FAST signs and when to seek urgent care.",
         ],
-        "Low": [
-            "Maintain BP <120/80, stay active, and know FAST signs."
-        ],
+        "Low": ["Maintain BP <120/80, stay active, and know FAST signs."],
     },
     "heart_disease": {
         "High": [
             "Discuss a chest pain plan, blood pressure and lipid management, and smoking cessation if applicable.",
-            "A clinician may consider ECG or other testing based on history."
+            "A clinician may consider ECG or other testing based on history.",
         ],
         "Moderate": [
             "Assess cholesterol, diet quality, and activity; discuss preventive medications if indicated."
         ],
-        "Low": [
-            "Maintain heart-healthy habits; know warning signs of angina."
-        ],
+        "Low": ["Maintain heart-healthy habits; know warning signs of angina."],
     },
     "hypertension": {
         "High": [
             "Record home BP (morning and evening for 1 week) and review targets with a clinician.",
-            "Limit salt, maintain a healthy weight, and follow a DASH-style diet."
+            "Limit salt, maintain a healthy weight, and follow a DASH-style diet.",
         ],
-        "Moderate": [
-            "Re-check BP after 5 minutes rest; keep a log and discuss lifestyle changes."
-        ],
-        "Low": [
-            "Continue regular checks and healthy habits."
-        ],
+        "Moderate": ["Re-check BP after 5 minutes rest; keep a log and discuss lifestyle changes."],
+        "Low": ["Continue regular checks and healthy habits."],
     },
     "heart_failure": {
         "High": [
             "Discuss breathlessness, swelling, and daily weight tracking with a clinician.",
-            "Review salt and fluid guidance; know when to seek urgent care."
+            "Review salt and fluid guidance; know when to seek urgent care.",
         ],
         "Moderate": [
             "Check for swelling or night cough; review blood pressure control and activity plan."
@@ -314,19 +255,17 @@ COND_GUIDE = {
     "afib": {
         "High": [
             "Discuss rhythm monitoring (ECG/ambulatory) and stroke prevention as advised by your clinician.",
-            "Limit alcohol and stimulants; report palpitations, dizziness, or fainting."
+            "Limit alcohol and stimulants; report palpitations, dizziness, or fainting.",
         ],
         "Moderate": [
             "Learn pulse checks; review triggers (caffeine, alcohol) and thyroid evaluation if advised."
         ],
-        "Low": [
-            "Know how to check pulse; seek review if it becomes irregular or fast."
-        ],
+        "Low": ["Know how to check pulse; seek review if it becomes irregular or fast."],
     },
     "pad": {
         "High": [
             "A supervised walking program and foot care are important; review smoking cessation if relevant.",
-            "Discuss blood pressure, glucose control, and statin/antiplatelet use with a clinician."
+            "Discuss blood pressure, glucose control, and statin/antiplatelet use with a clinician.",
         ],
         "Moderate": [
             "Start a gradual walking plan; maintain foot care; discuss preventive therapy if advised."
@@ -351,7 +290,6 @@ def compose_guidance(
     histories: dict,
 ):
     G = []
-    # Safety-first line
     if urgency == "emergency":
         G.append("Emergency symptoms detected — seek immediate medical care. Do not drive yourself.")
     elif urgency == "urgent":
@@ -359,11 +297,9 @@ def compose_guidance(
     else:
         G.append("Arrange routine review with a clinician to discuss your cardiovascular risk profile.")
 
-    # Condition-specific block by risk
     for line in COND_GUIDE.get(cond_key, {}).get(risk_cat, []):
         G.append(line)
 
-    # Factor-aware additions (brief, de-duplicated)
     if bp_cat != "Normal":
         G.append("Re-check blood pressure after 5 minutes of rest; keep a log and discuss with a clinician.")
     if hr_cat.startswith("Tachy") or hr_cat.startswith("Brady"):
@@ -383,14 +319,12 @@ def compose_guidance(
     if histories.get("family_history"):
         G.append("With a family history of heart disease, discuss earlier or more frequent screening.")
 
-    # Symptom pointers
     S = set(selected_symptoms)
     if {"chest_pain", "severe_chest_pain"} & S:
         G.append("Chest pain with sweating, nausea, or shortness of breath warrants urgent assessment.")
     if {"weak_limb", "slurred_speech", "face_droop"} & S:
         G.append("Stroke-like symptoms require emergency evaluation immediately.")
 
-    # De-duplicate & keep order
     seen = set(); out = []
     for s in G:
         if s not in seen:
@@ -433,7 +367,7 @@ with col2:
     diastolic_bp = num_input("Diastolic BP (mmHg)", "dbp", "e.g., 80", help="Bottom number; pressure between beats.")
     heart_rate = num_input("Heart Rate (bpm)", "hr", "e.g., 75", help="Resting beats per minute.")
 
-# BMI badge once both height/weight present
+# BMI, BP & HR badges
 bmi = None
 if height_m and weight_kg and height_m > 0:
     bmi = weight_kg / (height_m ** 2)
@@ -441,7 +375,6 @@ if height_m and weight_kg and height_m > 0:
     elif bmi >= 25: st.warning(f"BMI: {bmi:.1f} kg/m² — OVERWEIGHT")
     else: st.success(f"BMI: {bmi:.1f} kg/m² — Normal")
 
-# BP & HR badges when present
 if systolic_bp is not None and diastolic_bp is not None:
     bp_cat, bp_color, bp_note = categorize_bp(int(systolic_bp), int(diastolic_bp))
     msg = f"BP: {int(systolic_bp)}/{int(diastolic_bp)} mmHg — {bp_cat} ({bp_note})"
@@ -519,7 +452,7 @@ required_cats = [sex, smoking_status_lbl, alcohol_use_lbl, physical_activity,
                  family_history_heart, diabetes_history, kidney_disease, substance_abuse]
 all_required = all(v is not None for v in required_nums + required_cats)
 
-st.markdown("---")
+st.markdown("—")
 go = st.button("🔴 Assess Risk", type="primary", use_container_width=True)
 
 if not all_required and go:
@@ -596,24 +529,12 @@ if all_required and go:
         elif cat == "Moderate": st.warning("Risk Category: **MODERATE**")
         else: st.success("Risk Category: **LOW**")
 
-        # Optional lightweight explainability (hidden unless expanded)
-        with st.expander("Explain my score (optional)"):
-            # Top contributors by |beta * value| (excluding Intercept)
-            names, vals = [], []
-            for name, beta, x in zip(order, mu, x_vec):
-                if str(name).lower() == "intercept":
-                    continue
-                contrib = abs(float(beta) * float(x))
-                names.append(name); vals.append(contrib)
-
-            if vals:
-                top_idx = np.argsort(vals)[::-1][:3]
-                st.caption("Top factors contributing to the score:")
-                for i in top_idx:
-                    label = pretty_label(names[i])  # clean, human-friendly text
-                    st.markdown(f"- {label}")
-            else:
-                st.caption("No contributing factors to display.")
+    if urgency in ("urgent", "emergency") and cat == "Low":
+        st.info(
+            "Why ‘Urgent’ with a low risk score? Safety Check uses vitals and red-flag symptoms to "
+            "recommend how quickly to seek care. The risk score estimates the chance of this specific "
+            "condition only. They are independent checks."
+        )
 
     # Guidance (condition-specific + factors)
     st.subheader("Clinical Guidance & Next Steps")
@@ -636,7 +557,8 @@ if all_required and go:
             "family_history": bool(base["family_history_heart_disease"]),
         },
     )
-    for g in guidance: st.markdown(f"- {g}")
+    for g in guidance:
+        st.markdown(f"- {g}")
     st.caption("This tool supports awareness and early care-seeking. It does not diagnose conditions.")
 
     # --------------------------- PDF Report ---------------------------
@@ -649,14 +571,12 @@ if all_required and go:
             return None, f"ReportLab import failed: {e}"
 
         def draw_wrapped(c, text, x, y, width_chars=110, leading=12):
-            """Draw wrapped text and return new y (page-break safe)."""
             lines = wrap(text, width_chars)
             for ln in lines:
                 nonlocal_y_check()
                 c.drawString(x, y, ln); y -= leading
             return y
 
-        # page-break helper
         buffer = io.BytesIO()
         c = canvas.Canvas(buffer, pagesize=letter)
         width, height = letter
@@ -668,7 +588,6 @@ if all_required and go:
             if y < margin + 30:
                 c.showPage()
                 y = height - margin
-                # header on new page (logo + title small)
                 if logo_path_str:
                     try:
                         c.drawImage(ImageReader(logo_path_str), 40, y - 20, width=40, height=40,
