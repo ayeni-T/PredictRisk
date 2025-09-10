@@ -14,6 +14,18 @@ from datetime import datetime
 from textwrap import wrap
 import io
 
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+
+LOGO_CANDIDATES = [
+    BASE_DIR / "logo.png",
+    BASE_DIR / "assets" / "logo.png",
+    BASE_DIR / "static" / "logo.png",
+]
+
+ARTIFACT_DIR = BASE_DIR / "artifacts"
+
 # --------------------------- Logo detection ---------------------------
 LOGO_CANDIDATES = [Path("logo.png"), Path("assets/logo.png"), Path("static/logo.png")]
 
