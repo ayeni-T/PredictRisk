@@ -1,0 +1,20 @@
+# Python & env
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# Data / notebooks / local outputs
+*.csv
+*.xlsx
+*.ipynb
+artifacts_raw/
+data/
+outputs/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Generated PDFs
+PredictRisk_Report_*.pdf
