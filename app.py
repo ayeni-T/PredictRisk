@@ -210,6 +210,56 @@ def overall_recommendation(urgency: str, risk_cat: str):
         return ("Overall Recommendation: Plan a routine check-in and address modifiable risks.", "gold")
     return ("Overall Recommendation: Maintain healthy habits and recheck periodically.", "green")
 
+def pretty_label(raw: str) -> str:
+    """
+    Turn model feature names into readable labels.
+    - Removes C(...) and [T.x] scaffolding
+    - Maps smoking/alcohol dummies to friendly text
+    - Replaces underscores with spaces and Title-Cases
+    """
+    if not isinstance(raw, str):
+        return str(raw)
+
+    n = raw.replace("C(", "").replace(")", "")
+    l = n.lower()
+
+    # Dummy-coded categories
+    if "smok" in l and ("[t.1]" in l or "t.1" in l):
+        return "Former smoker (vs Never)"
+    if "smok" in l and ("[t.2]" in l or "t.2" in l):
+        return "Current smoker (vs Never)"
+    if "alcohol" in l and ("[t.1]" in l or "t.1" in l):
+        return "Moderate alcohol (vs None)"
+    if "alcohol" in l and ("[t.2]" in l or "t.2" in l):
+        return "Excessive alcohol (vs None)"
+
+    # Strip any leftover tags
+    n = n.replace("[T.1]", "").replace("[T.2]", "")
+
+    # Friendly names for common features
+    friendly = {
+        "age": "Age (years)",
+        "sex": "Sex",
+        "bmi": "Body mass index (BMI)",
+        "physical_activity": "Physically active",
+        "systolic_bp": "Systolic BP (mmHg)",
+        "diastolic_bp": "Diastolic BP (mmHg)",
+        "heart_rate": "Heart rate (bpm)",
+        "sleep_hours": "Sleep (hours/night)",
+        "stress_score": "Stress score",
+        "family_history_heart_disease": "Family history of heart disease",
+        "diabetes_history": "Diabetes history",
+        "kidney_disease": "Chronic kidney disease",
+        "substance_abuse": "Substance use",
+        "intercept": "Intercept",
+    }
+    key = n.strip()
+    if key in friendly:
+        return friendly[key]
+
+    # Default: replace underscores and Title-Case
+    return " ".join(w.capitalize() for w in key.replace("_", " ").split())
+
 # --------- Condition-specific guidance (educational, not diagnostic) ----------
 COND_GUIDE = {
     "stroke": {
@@ -240,7 +290,7 @@ COND_GUIDE = {
     "hypertension": {
         "High": [
             "Record home BP (morning and evening for 1 week) and review targets with a clinician.",
-            "Limit salt, maintain healthy weight, and follow a DASH-style diet."
+            "Limit salt, maintain a healthy weight, and follow a DASH-style diet."
         ],
         "Moderate": [
             "Re-check BP after 5 minutes rest; keep a log and discuss lifestyle changes."
@@ -469,7 +519,7 @@ required_cats = [sex, smoking_status_lbl, alcohol_use_lbl, physical_activity,
                  family_history_heart, diabetes_history, kidney_disease, substance_abuse]
 all_required = all(v is not None for v in required_nums + required_cats)
 
-st.markdown("—")
+st.markdown("---")
 go = st.button("🔴 Assess Risk", type="primary", use_container_width=True)
 
 if not all_required and go:
@@ -548,24 +598,22 @@ if all_required and go:
 
         # Optional lightweight explainability (hidden unless expanded)
         with st.expander("Explain my score (optional)"):
-            # simple top drivers by |mu_i * x_i| (excluding Intercept)
-            names = []
-            vals = []
+            # Top contributors by |beta * value| (excluding Intercept)
+            names, vals = [], []
             for name, beta, x in zip(order, mu, x_vec):
-                if name.lower() == "intercept": 
+                if str(name).lower() == "intercept":
                     continue
                 contrib = abs(float(beta) * float(x))
                 names.append(name); vals.append(contrib)
+
             if vals:
                 top_idx = np.argsort(vals)[::-1][:3]
                 st.caption("Top factors contributing to the score:")
                 for i in top_idx:
-                    st.write(f"- {names[i].replace('C(','').replace(')','').replace('[T.1]','').replace('[T.2]','')}")
+                    label = pretty_label(names[i])  # clean, human-friendly text
+                    st.markdown(f"- {label}")
             else:
                 st.caption("No contributing factors to display.")
-
-    if urgency in ("urgent", "emergency") and cat == "Low":
-        st.info("Why ‘Urgent’ with a low risk score? Safety Check uses vitals and red-flag symptoms to recommend how quickly to seek care. The risk score estimates the chance of this specific condition only. They are independent checks.")
 
     # Guidance (condition-specific + factors)
     st.subheader("Clinical Guidance & Next Steps")
@@ -728,14 +776,12 @@ if all_required and go:
             mime="application/pdf",
         )
 
-
 # Launch disclaimer (shown on app load; PDF disclaimer stays in footer)
 st.info(
     "⚠️ **Disclaimer:** PredictRisk provides educational risk estimates and triage guidance. "
     "It is **not** a diagnosis and does not replace professional medical care. "
     "If symptoms are severe or worsening, seek immediate care."
 )
-
 
 # ---------- Footer copyright + version ----------
 st.markdown(
