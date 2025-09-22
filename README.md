@@ -3,7 +3,9 @@
 **PredictRisk** helps people understand cardiovascular risk and **when to seek care** using **non-lab** inputs (vitals, history, symptoms).  
 It is **not** a diagnosis and does **not** replace clinical care.
 
-> © Taiwo Michael Ayeni — Educational and awareness tool only.
+**Live app:** [Open PredictRisk Version 2](https://predictrisk-v2.streamlit.app/)
+
+> © **2025** Taiwo Michael Ayeni — Educational and awareness tool only.
 
 ---
 
@@ -22,10 +24,10 @@ It is **not** a diagnosis and does **not** replace clinical care.
 
 ## Inputs (no lab tests)
 
-Age, Sex, Height/Weight (BMI), Systolic/Diastolic BP, Heart Rate, Smoking (Never/Former/Current),
-Alcohol (None/Moderate/Excessive), Physical activity, Sleep, Stress;
-History (Family heart disease, Diabetes, CKD, Substance use);
-Symptoms (chest pain, breathlessness, palpitations, dizziness/fainting, stroke signs, leg swelling, claudication).
+##### Age, Sex, Height/Weight (BMI), Systolic/Diastolic BP, Heart Rate, Smoking (Never/Former/Current),
+##### Alcohol (None/Moderate/Excessive), Physical activity, Sleep, Stress;
+##### History (Family heart disease, Diabetes, CKD, Substance use);
+##### Symptoms (chest pain, breathlessness, palpitations, dizziness/fainting, stroke signs, leg swelling, claudication).
 
 ---
 
@@ -33,8 +35,7 @@ Symptoms (chest pain, breathlessness, palpitations, dizziness/fainting, stroke s
 
 ```bash
 pip install -r requirements.txt
-streamlit run app.py     # or app_lightweight.py if that’s your filename
-```
+streamlit run app.py
 
 Python **3.12** (pinned in `runtime.txt`). No secrets required.
 
@@ -59,6 +60,6 @@ Python **3.12** (pinned in `runtime.txt`). No secrets required.
 
 ## Disclaimer
 
-PredictRisk provides educational estimates and triage guidance only.  
-It is **not** a diagnosis and does **not** replace clinical evaluation.  
-If symptoms are severe or worsening, **seek immediate medical care**.
+ PredictRisk provides educational estimates and triage guidance only.  
+ It is **not** a diagnosis and does **not** replace clinical evaluation.  
+ If symptoms are severe or worsening, **seek immediate medical care**.
