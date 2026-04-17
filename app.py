@@ -433,53 +433,67 @@ def render_ci_plots(prob_samples: np.ndarray, mean_p: float, lo: float, hi: floa
             "for example, because some health details were not provided."
         )
 
-        fig1, ax1 = plt.subplots(figsize=(8, 3.2))
-        fig1.subplots_adjust(left=0.04, right=0.97, top=0.78, bottom=0.18)
+        # ── Taller figure: top half = score label, middle = chart, bottom = zone labels + axis
+        fig1, ax1 = plt.subplots(figsize=(8, 4.0))
+        fig1.subplots_adjust(left=0.04, right=0.97, top=0.72, bottom=0.32)
 
-        # ── Background risk zones ────────────────────────────────────────────
+        # ── Background risk zones (coloured bands) ───────────────────────────
         zone_data = [
-            (0,    0.15, "#d5f5e3", "#1e8449", "Low Risk\n(0%–15%)"),
-            (0.15, 0.25, "#fef9e7", "#b7770d", "Moderate Risk\n(15%–40%)"),
-            (0.40, 0.60, "#fadbd8", "#922b21", "High Risk\n(40%–100%)"),
+            (0,    0.15, "#d5f5e3", "#1e8449", "Low Risk",      "0%–15%"),
+            (0.15, 0.25, "#fef9e7", "#b7770d", "Moderate Risk", "15%–40%"),
+            (0.40, 0.60, "#fadbd8", "#922b21", "High Risk",     "40%–100%"),
         ]
-        for x_start, width, bg, tc, zlabel in zone_data:
-            ax1.barh(0, width, left=x_start, height=0.6,
+        for x_start, width, bg, tc, zlabel, zrange in zone_data:
+            ax1.barh(0, width, left=x_start, height=0.55,
                      color=bg, zorder=1, edgecolor="#ccc", linewidth=0.5)
-            ax1.text(x_start + width / 2, 0.42, zlabel,
-                     ha="center", va="bottom", fontsize=8,
-                     color=tc, fontweight="bold", linespacing=1.3)
+
+        # ── Zone labels BELOW the bar (in the bottom margin) ────────────────
+        # Placed at y = -0.55 so they never touch the score annotation above
+        for x_start, width, bg, tc, zlabel, zrange in zone_data:
+            cx = x_start + width / 2
+            ax1.text(cx, -0.50, zlabel,
+                     ha="center", va="top", fontsize=8,
+                     color=tc, fontweight="bold")
+            ax1.text(cx, -0.68, zrange,
+                     ha="center", va="top", fontsize=7.5,
+                     color=tc)
 
         # ── Credible interval bar ────────────────────────────────────────────
         range_width = hi - lo
-        ax1.barh(0, range_width, left=lo, height=0.28, color="#2471a3",
+        ax1.barh(0, range_width, left=lo, height=0.26, color="#2471a3",
                  alpha=0.7, zorder=2)
 
-        # End-cap ticks on the CI bar
+        # End-cap ticks
         for x_tick in [lo, hi]:
-            ax1.plot([x_tick, x_tick], [-0.14, 0.14], color="#2471a3",
+            ax1.plot([x_tick, x_tick], [-0.13, 0.13], color="#2471a3",
                      lw=2, zorder=3)
 
         # ── Point estimate diamond ───────────────────────────────────────────
         ax1.plot(mean_p, 0, "D", color="#1a5276", markersize=11,
                  zorder=4, markeredgecolor="white", markeredgewidth=1.5)
 
-        # ── Score label above diamond ────────────────────────────────────────
+        # ── "Your score" label ABOVE the bar — always in top margin ─────────
+        # Uses a filled box so it's clearly readable regardless of zone colour
+        score_color = {"Low Risk": "#1e8449", "Moderate Risk": "#b7770d", "High Risk": "#922b21"}.get(zone, "#1a5276")
         ax1.annotate(
-            f"Your score\n{mean_p:.0%}",
-            xy=(mean_p, 0.14),
-            xytext=(mean_p, 0.38),
-            fontsize=9, color="#1a5276", fontweight="bold",
-            ha="center", va="bottom",
-            arrowprops=dict(arrowstyle="-|>", color="#1a5276", lw=1.2),
+            f"Your score: {mean_p:.0%}  ({zone})",
+            xy=(mean_p, 0.28),
+            xytext=(mean_p, 0.62),
+            fontsize=9.5, color="white", fontweight="bold",
+            ha="center", va="center",
+            bbox=dict(boxstyle="round,pad=0.4", facecolor=score_color,
+                      edgecolor="white", linewidth=1.5),
+            arrowprops=dict(arrowstyle="-|>", color=score_color, lw=1.5),
         )
 
-        # ── CI range label below bar ─────────────────────────────────────────
-        ax1.text((lo + hi) / 2, -0.22,
+        # ── Plausible range label below CI bar ───────────────────────────────
+        ax1.text((lo + hi) / 2, -0.20,
                  f"Plausible range: {lo:.0%} to {hi:.0%}",
-                 ha="center", va="top", fontsize=8, color="#2471a3")
+                 ha="center", va="top", fontsize=8, color="#2471a3",
+                 style="italic")
 
         ax1.set_xlim(0, 1)
-        ax1.set_ylim(-0.55, 0.85)
+        ax1.set_ylim(-0.85, 0.90)
         ax1.set_yticks([])
         ax1.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{int(x*100)}%"))
         ax1.tick_params(axis="x", labelsize=9)
@@ -493,7 +507,7 @@ def render_ci_plots(prob_samples: np.ndarray, mean_p: float, lo: float, hi: floa
 
         st.caption(
             f"The blue bar shows the plausible range ({lo:.0%} – {hi:.0%}). "
-            f"The diamond marks your most likely score ({mean_p:.0%} — **{zone}**). "
+            f"The coloured badge marks your most likely score ({mean_p:.0%} — **{zone}**). "
             "A wider bar means more uncertainty, often because some fields were left blank."
         )
 
