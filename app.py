@@ -1,6 +1,6 @@
 # app.py
 # PredictRisk: Cardiovascular Diagnostic Tool (educational)
-# Revamp v3 — Prof. Yeh's suggestions implemented:
+# Revamp v3 — Prof. Zhao's suggestions implemented:
 #   1. N/A / Unsure option for each covariate (excluded from prediction)
 #   2. Credible interval plots — posterior predictive density + coefficient forest plot
 
@@ -344,39 +344,58 @@ def parse_float(s):
 
 def num_input_with_na(label, key, placeholder, help=None):
     """
-    Number input with an N/A checkbox. Returns (value_or_None, is_na).
+    Number input with an inline N/A toggle rendered below the field.
+    Returns (value_or_None, is_na).
     """
-    col_inp, col_na = st.columns([5, 1])
-    with col_na:
-        st.markdown("<div style='padding-top:28px'></div>", unsafe_allow_html=True)
-        is_na = st.checkbox("N/A", key=f"na_{key}",
-                            help="Check if this value is unavailable or unknown")
-    with col_inp:
-        if is_na:
-            st.text_input(label, value="Not available / Unsure", disabled=True, key=f"dis_{key}")
-            return None, True
-        else:
-            val = parse_float(st.text_input(label, key=f"val_{key}", placeholder=placeholder, help=help))
-            return val, False
+    st.markdown(f"**{label}**" + (f" <span title='{help}'>ℹ️</span>" if help else ""),
+                unsafe_allow_html=True)
+    is_na = st.checkbox("☐ Not available / Unsure", key=f"na_{key}")
+    if is_na:
+        st.markdown(
+            "<div style='color:#888; font-style:italic; font-size:0.85rem;"
+            "border:1px solid #ddd; border-radius:4px; padding:6px 10px;"
+            "background:#f8f8f8; margin-bottom:8px'>Not available / Unsure</div>",
+            unsafe_allow_html=True,
+        )
+        return None, True
+    else:
+        val = parse_float(st.text_input("", key=f"val_{key}", placeholder=placeholder,
+                                         label_visibility="collapsed"))
+        return val, False
 
 def select_with_placeholder_and_na(label, options, key, help=None):
     """
-    Selectbox with N/A option. Returns (choice_or_None, is_na).
+    Selectbox with an inline N/A toggle rendered below the field.
+    Returns (choice_or_None, is_na).
     """
-    col_inp, col_na = st.columns([5, 1])
-    with col_na:
-        st.markdown("<div style='padding-top:28px'></div>", unsafe_allow_html=True)
-        is_na = st.checkbox("N/A", key=f"na_{key}",
-                            help="Check if this value is unavailable or unknown")
-    with col_inp:
-        if is_na:
-            st.text_input(label, value="Not available / Unsure", disabled=True, key=f"dis_{key}")
-            return None, True
-        else:
-            display = ["— Select —"] + options
-            choice = st.selectbox(label, display, index=0, key=f"sel_{key}", help=help)
-            val = None if choice == "— Select —" else choice
-            return val, False
+    st.markdown(f"**{label}**" + (f" <span title='{help}'>ℹ️</span>" if help else ""),
+                unsafe_allow_html=True)
+    is_na = st.checkbox("☐ Not available / Unsure", key=f"na_{key}")
+    if is_na:
+        st.markdown(
+            "<div style='color:#888; font-style:italic; font-size:0.85rem;"
+            "border:1px solid #ddd; border-radius:4px; padding:6px 10px;"
+            "background:#f8f8f8; margin-bottom:8px'>Not available / Unsure</div>",
+            unsafe_allow_html=True,
+        )
+        return None, True
+    else:
+        display = ["— Select —"] + options
+        choice = st.selectbox("", display, index=0, key=f"sel_{key}",
+                               label_visibility="collapsed")
+        val = None if choice == "— Select —" else choice
+        return val, False
+
+def plain_num_input(label, key, placeholder, help=None):
+    """Plain number input — no N/A option."""
+    val = parse_float(st.text_input(label, key=f"val_{key}", placeholder=placeholder, help=help))
+    return val
+
+def plain_select(label, options, key, help=None):
+    """Plain selectbox — no N/A option."""
+    display = ["— Select —"] + options
+    choice = st.selectbox(label, display, index=0, key=f"sel_{key}", help=help)
+    return None if choice == "— Select —" else choice
 
 # ════════════════════════════════════════════════════════════════════
 # CREDIBLE INTERVAL PLOT FUNCTION  (Prof. Zhao suggestion #2)
@@ -493,28 +512,48 @@ cond_key = CONDITIONS[condition_label]
 
 st.header("Enter your health details")
 st.caption(
-    "💡 **N/A** checkboxes: If a value is unavailable or unknown, tick N/A. "
-    "That covariate will be excluded from the prediction, and the result will indicate "
-    "how many variables were used. The credible interval will widen accordingly."
+    "💡 Optional fields have a **Not available / Unsure** toggle. "
+    "Ticked fields are excluded from the prediction and the credible interval widens accordingly. "
+    "Fields marked * are required for the clinical safety check."
 )
 
 missing_fields = []   # tracks human-readable names of N/A fields
 
 col1, col2 = st.columns(2)
 with col1:
-    age, age_na       = num_input_with_na("Age (years)", "age", "e.g., 50", help="Your age in completed years.")
-    sex_val, sex_na   = select_with_placeholder_and_na("Sex", ["Female", "Male"], "sex",
-                                                        help="Biological sex assigned at birth.")
-    height_m, h_na    = num_input_with_na("Height (m)", "height_m", "e.g., 1.70", help="Measured height in metres.")
-    weight_kg, w_na   = num_input_with_na("Weight (kg)", "weight_kg", "e.g., 75", help="Body weight in kilograms.")
+    # Age — N/A allowed
+    age, age_na = num_input_with_na("Age (years)", "age", "e.g., 50",
+                                     help="Your age in completed years.")
+
+    # Sex — REQUIRED (binary, almost always known)
+    sex_val = plain_select("Sex *", ["Female", "Male"], "sex",
+                            help="Biological sex assigned at birth. Required.")
+    sex_na = False
+
+    # Height & Weight — one combined BMI toggle
+    st.markdown("**Height & Weight** *(used to compute BMI)*", unsafe_allow_html=False)
+    bmi_na = st.checkbox("Not available / Unsure", key="na_bmi")
+    if bmi_na:
+        st.caption("BMI will be excluded from the prediction.")
+        height_m, weight_kg, h_na, w_na = None, None, True, True
+    else:
+        c_h, c_w = st.columns(2)
+        with c_h:
+            height_m = parse_float(st.text_input("Height (m)", key="val_height_m",
+                                                  placeholder="e.g., 1.70"))
+        with c_w:
+            weight_kg = parse_float(st.text_input("Weight (kg)", key="val_weight_kg",
+                                                   placeholder="e.g., 75"))
+        h_na, w_na = False, False
 
 with col2:
-    systolic_bp, sbp_na  = num_input_with_na("Systolic BP (mmHg)", "sbp", "e.g., 120",
-                                              help="Top number; seated, arm supported.")
-    diastolic_bp, dbp_na = num_input_with_na("Diastolic BP (mmHg)", "dbp", "e.g., 80",
-                                              help="Bottom number; pressure between beats.")
-    heart_rate, hr_na    = num_input_with_na("Heart Rate (bpm)", "hr", "e.g., 75",
-                                              help="Resting beats per minute.")
+    # BP and HR — REQUIRED (drive clinical urgency / safety triage)
+    systolic_bp = parse_float(st.text_input("Systolic BP (mmHg) [required]", key="val_sbp", placeholder="e.g., 120"))
+    diastolic_bp = parse_float(st.text_input("Diastolic BP (mmHg) [required]", key="val_dbp", placeholder="e.g., 80"))
+    heart_rate = parse_float(st.text_input("Heart Rate (bpm) [required]", key="val_hr", placeholder="e.g., 75"))
+    sbp_na, dbp_na, hr_na = False, False, False
+
+st.caption("Fields marked [required] power the clinical urgency and safety triage check.")
 
 # BMI badge
 bmi = None
