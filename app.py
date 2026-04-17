@@ -1,6 +1,6 @@
 # app.py
 # PredictRisk: Cardiovascular Diagnostic Tool (educational)
-# Revamp v3 — Prof. Zhao's suggestions implemented:
+# Revamp v3 — Prof. Yeh's suggestions implemented:
 #   1. N/A / Unsure option for each covariate (excluded from prediction)
 #   2. Credible interval plots — posterior predictive density + coefficient forest plot
 
