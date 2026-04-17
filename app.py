@@ -398,7 +398,8 @@ def plain_select(label, options, key, help=None):
     return None if choice == "— Select —" else choice
 
 # ════════════════════════════════════════════════════════════════════
-# CREDIBLE INTERVAL PLOT FUNCTION  (Prof. Zhao suggestion #2)
+# PLAIN-LANGUAGE UNCERTAINTY PLOTS  (Prof. Zhao suggestion #2)
+# Designed for general (non-statistician) users
 # ════════════════════════════════════════════════════════════════════
 def render_ci_plots(prob_samples: np.ndarray, mean_p: float, lo: float, hi: float,
                     mu: np.ndarray, cov: np.ndarray, order: list, x_vec: np.ndarray,
@@ -407,99 +408,151 @@ def render_ci_plots(prob_samples: np.ndarray, mean_p: float, lo: float, hi: floa
     import matplotlib.patches as mpatches
     from scipy.stats import gaussian_kde
 
-    with st.expander("📊 Credible Interval Plots", expanded=True):
-        st.caption(
-            "These plots visualise the uncertainty in your risk estimate. "
-            "The wider the distribution, the less certain the model is — "
-            "this is especially relevant when some covariates are unavailable."
-        )
+    # Determine plain-language risk zone for annotations
+    if mean_p >= 0.40:
+        zone, zone_color = "High Risk", "#e74c3c"
+    elif mean_p >= 0.15:
+        zone, zone_color = "Moderate Risk", "#f39c12"
+    else:
+        zone, zone_color = "Low Risk", "#27ae60"
+
+    with st.expander("📊 Understanding Your Result", expanded=True):
 
         if missing_fields:
             st.info(
-                f"⚠️ **{len(missing_fields)} covariate(s) marked N/A** ({', '.join(missing_fields)}) "
-                "were excluded from the prediction. The credible interval below is therefore "
-                "wider than it would be with complete data."
+                f"Some information was not provided ({', '.join(missing_fields)}), "
+                "so the estimate below covers a wider range than it would with complete details. "
+                "Filling in more fields will give a more precise result."
             )
 
-        # ── Plot 1: Posterior predictive density ────────────────────────────
-        st.markdown("#### Posterior Predictive Distribution of Risk")
+        # ── Plot 1: Risk Range Chart (replaces density plot) ─────────────────
+        st.markdown("#### How Certain Is This Estimate?")
         st.caption(
-            "Each value on the x-axis is a plausible risk estimate given the patient profile "
-            "and uncertainty in model coefficients. The red shaded band is the 95% credible interval."
+            "The bar below shows the range of plausible risk scores based on your information. "
+            "A narrow bar means the estimate is precise. A wide bar means there is more uncertainty — "
+            "for example, because some health details were not provided."
         )
 
-        fig1, ax1 = plt.subplots(figsize=(8, 3.2))
-        ax1.hist(prob_samples, bins=80, density=True, color="#3498db", alpha=0.4)
+        fig1, ax1 = plt.subplots(figsize=(8, 2.2))
 
-        xs = np.linspace(max(0, lo - 0.05), min(1.0, hi + 0.05), 500)
-        try:
-            kde = gaussian_kde(prob_samples, bw_method=0.15)
-            ax1.plot(xs, kde(xs), color="#2980b9", lw=2)
-            ci_xs = np.linspace(lo, hi, 300)
-            ax1.fill_between(ci_xs, kde(ci_xs), alpha=0.35, color="#e74c3c", label="95% Credible Interval")
-        except Exception:
-            pass
+        # Background zones: Low / Moderate / High
+        ax1.barh(0, 0.15, left=0,    height=0.55, color="#d5f5e3", zorder=1)
+        ax1.barh(0, 0.25, left=0.15, height=0.55, color="#fdebd0", zorder=1)
+        ax1.barh(0, 0.60, left=0.40, height=0.55, color="#fadbd8", zorder=1)
 
-        ax1.axvline(mean_p, color="#e74c3c", lw=2, linestyle="--", label=f"Mean = {mean_p:.1%}")
-        ax1.set_xlabel(f"Predicted Risk Probability — {condition_label}", fontsize=10)
-        ax1.set_ylabel("Density", fontsize=10)
+        # Zone labels
+        for x, label, col in [(0.075, "Low Risk", "#1e8449"),
+                               (0.275, "Moderate Risk", "#d35400"),
+                               (0.70,  "High Risk", "#922b21")]:
+            ax1.text(x, 0.52, label, ha="center", va="bottom", fontsize=8,
+                     color=col, fontweight="bold", transform=ax1.get_xaxis_transform())
+
+        # Confidence range bar
+        range_width = hi - lo
+        ax1.barh(0, range_width, left=lo, height=0.3, color="#2980b9",
+                 alpha=0.5, zorder=2, label=f"Likely range: {lo:.0%} – {hi:.0%}")
+
+        # Point estimate marker
+        ax1.plot(mean_p, 0, "D", color="#1a5276", markersize=10, zorder=3,
+                 label=f"Your estimated risk: {mean_p:.0%}")
+
+        # Annotation arrow
+        ax1.annotate(
+            f"  Your score: {mean_p:.0%}",
+            xy=(mean_p, 0), xytext=(mean_p, 0.55),
+            fontsize=9, color="#1a5276", fontweight="bold", ha="center",
+            arrowprops=dict(arrowstyle="->", color="#1a5276", lw=1.5),
+        )
+
         ax1.set_xlim(0, 1)
-        ax1.legend(fontsize=9)
-        ax1.spines[["top", "right"]].set_visible(False)
+        ax1.set_ylim(-0.5, 1.0)
+        ax1.set_xlabel("Risk Score (0% = no risk  →  100% = highest risk)", fontsize=9)
+        ax1.set_yticks([])
+        ax1.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:.0%}"))
+        ax1.legend(fontsize=8, loc="lower right")
+        ax1.spines[["top", "right", "left"]].set_visible(False)
+        fig1.tight_layout()
         st.pyplot(fig1, use_container_width=True)
         plt.close(fig1)
 
-        # ── Plot 2: Coefficient forest plot ─────────────────────────────────
-        st.markdown("#### Coefficient Credible Intervals (log-odds scale)")
         st.caption(
-            "Each row shows the posterior mean ± 95% credible interval for a model coefficient. "
-            "🔴 Red = risk-increasing (CI entirely above 0). 🔵 Blue = protective (CI entirely below 0). "
-            "Grey = direction uncertain (CI crosses 0). Only covariates present in the artifact are shown."
+            f"The blue bar shows the plausible range ({lo:.0%} – {hi:.0%}). "
+            f"The diamond marks your most likely score ({mean_p:.0%} — **{zone}**). "
+            "This range does not mean the risk is unknown; it reflects normal uncertainty in any health prediction."
         )
 
-        # Extract per-feature posterior marginals from the covariance diagonal
-        cov_arr = np.asarray(cov, dtype="float64")
-        sds = np.sqrt(np.diag(cov_arr))
-        mu_arr = np.asarray(mu, dtype="float64")
+        st.divider()
 
-        # Skip Intercept for the plot; show only non-intercept features
+        # ── Plot 2: What Is Driving Your Risk? (replaces forest plot) ────────
+        st.markdown("#### What Is Contributing to Your Risk?")
+        st.caption(
+            "This chart shows which of your health factors are raising or lowering your estimated risk. "
+            "Longer bars mean a stronger influence. Factors shown in red are increasing risk; "
+            "factors in green are helping to lower it."
+        )
+
+        # Convert log-odds coefficients × patient values to % risk contribution (relative magnitude)
+        cov_arr = np.asarray(cov, dtype="float64")
+        mu_arr  = np.asarray(mu,  dtype="float64")
+
         plot_indices = [i for i, n in enumerate(order) if n.lower() != "intercept"]
         if not plot_indices:
-            st.info("No non-intercept features to display.")
+            st.info("No individual factors to display.")
             return
 
-        feat_labels = [pretty_feature(order[i]) for i in plot_indices]
-        means_f = [mu_arr[i] for i in plot_indices]
-        sds_f   = [sds[i]    for i in plot_indices]
-        ci_lo_f = [m - 1.96 * s for m, s in zip(means_f, sds_f)]
-        ci_hi_f = [m + 1.96 * s for m, s in zip(means_f, sds_f)]
+        feat_labels  = [pretty_feature(order[i]) for i in plot_indices]
+        contributions = [mu_arr[i] * float(x_vec[i]) for i in plot_indices]
 
-        colors = [
-            "#e74c3c" if lo_v > 0 else "#3498db" if hi_v < 0 else "#95a5a6"
-            for lo_v, hi_v in zip(ci_lo_f, ci_hi_f)
+        # Only show factors with non-zero patient values (present and meaningful)
+        nonzero = [(lab, contrib) for lab, contrib in zip(feat_labels, contributions)
+                   if abs(contrib) > 1e-4]
+
+        if not nonzero:
+            st.info("No individual risk factor contributions to display for this profile.")
+            return
+
+        # Sort by absolute contribution descending
+        nonzero.sort(key=lambda x: abs(x[1]), reverse=True)
+        labels_nz = [x[0] for x in nonzero]
+        contribs_nz = [x[1] for x in nonzero]
+
+        colors_nz = ["#e74c3c" if c > 0 else "#27ae60" for c in contribs_nz]
+        bar_labels = [
+            ("Increases risk" if c > 0 else "Lowers risk")
+            for c in contribs_nz
         ]
 
-        n_feat = len(plot_indices)
-        fig2, ax2 = plt.subplots(figsize=(7, max(3.5, 0.5 * n_feat)))
+        n = len(labels_nz)
+        fig2, ax2 = plt.subplots(figsize=(8, max(3.0, 0.45 * n)))
 
-        for i, (lo_v, hi_v, m_v, c) in enumerate(zip(ci_lo_f, ci_hi_f, means_f, colors)):
-            ax2.plot([lo_v, hi_v], [i, i], color=c, lw=2.5, solid_capstyle="round")
-            ax2.scatter(m_v, i, color=c, zorder=5, s=55)
+        bars = ax2.barh(range(n), contribs_nz, color=colors_nz, alpha=0.8, edgecolor="white")
 
-        ax2.axvline(0, color="black", lw=1, linestyle="--", alpha=0.5)
-        ax2.set_yticks(range(n_feat))
-        ax2.set_yticklabels(feat_labels, fontsize=8)
-        ax2.set_xlabel("Posterior Coefficient (log-odds)", fontsize=10)
-        ax2.set_title(f"Model Coefficient Credible Intervals — {condition_label}", fontsize=10, fontweight="bold")
+        # Value labels on bars
+        for i, (bar, contrib, bl) in enumerate(zip(bars, contribs_nz, bar_labels)):
+            xpos = contrib + (0.005 if contrib >= 0 else -0.005)
+            ha   = "left" if contrib >= 0 else "right"
+            ax2.text(xpos, i, bl, va="center", ha=ha, fontsize=8, color="#333")
 
-        red_p  = mpatches.Patch(color="#e74c3c", label="Risk-increasing (CI > 0)")
-        blue_p = mpatches.Patch(color="#3498db", label="Protective (CI < 0)")
-        grey_p = mpatches.Patch(color="#95a5a6", label="Uncertain direction")
-        ax2.legend(handles=[red_p, blue_p, grey_p], fontsize=8, loc="lower right")
-        ax2.spines[["top", "right"]].set_visible(False)
+        ax2.axvline(0, color="black", lw=1, alpha=0.4)
+        ax2.set_yticks(range(n))
+        ax2.set_yticklabels(labels_nz, fontsize=9)
+        ax2.set_xlabel("Influence on your risk score", fontsize=9)
+        ax2.set_title(f"Factors Influencing Your {condition_label} Risk", fontsize=10, fontweight="bold")
+        ax2.xaxis.set_visible(False)  # hide raw numbers — only direction matters for lay users
+        ax2.spines[["top", "right", "bottom"]].set_visible(False)
+
+        red_p  = mpatches.Patch(color="#e74c3c", alpha=0.8, label="Raising your risk")
+        grn_p  = mpatches.Patch(color="#27ae60", alpha=0.8, label="Lowering your risk")
+        ax2.legend(handles=[red_p, grn_p], fontsize=8, loc="lower right")
         fig2.tight_layout()
         st.pyplot(fig2, use_container_width=True)
         plt.close(fig2)
+
+        st.caption(
+            "This chart shows the relative influence of each factor — not an absolute medical diagnosis. "
+            "Some factors (like age or family history) cannot be changed, but others (like smoking or "
+            "physical activity) are modifiable. Discuss these with your clinician."
+        )
 
 
 # ════════════════════════════════════════════════════════════════════════════
