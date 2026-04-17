@@ -416,7 +416,7 @@ def render_ci_plots(prob_samples: np.ndarray, mean_p: float, lo: float, hi: floa
     else:
         zone, zone_color = "Low Risk", "#27ae60"
 
-    with st.expander("📊 Understanding Your Result", expanded=True):
+    with st.expander("📊 Understanding Your Result — Charts & Breakdown", expanded=True):
 
         if missing_fields:
             st.info(
@@ -433,65 +433,79 @@ def render_ci_plots(prob_samples: np.ndarray, mean_p: float, lo: float, hi: floa
             "for example, because some health details were not provided."
         )
 
-        fig1, ax1 = plt.subplots(figsize=(8, 2.2))
+        fig1, ax1 = plt.subplots(figsize=(8, 3.2))
+        fig1.subplots_adjust(left=0.04, right=0.97, top=0.78, bottom=0.18)
 
-        # Background zones: Low / Moderate / High
-        ax1.barh(0, 0.15, left=0,    height=0.55, color="#d5f5e3", zorder=1)
-        ax1.barh(0, 0.25, left=0.15, height=0.55, color="#fdebd0", zorder=1)
-        ax1.barh(0, 0.60, left=0.40, height=0.55, color="#fadbd8", zorder=1)
+        # ── Background risk zones ────────────────────────────────────────────
+        zone_data = [
+            (0,    0.15, "#d5f5e3", "#1e8449", "Low Risk\n(0%–15%)"),
+            (0.15, 0.25, "#fef9e7", "#b7770d", "Moderate Risk\n(15%–40%)"),
+            (0.40, 0.60, "#fadbd8", "#922b21", "High Risk\n(40%–100%)"),
+        ]
+        for x_start, width, bg, tc, zlabel in zone_data:
+            ax1.barh(0, width, left=x_start, height=0.6,
+                     color=bg, zorder=1, edgecolor="#ccc", linewidth=0.5)
+            ax1.text(x_start + width / 2, 0.42, zlabel,
+                     ha="center", va="bottom", fontsize=8,
+                     color=tc, fontweight="bold", linespacing=1.3)
 
-        # Zone labels
-        for x, label, col in [(0.075, "Low Risk", "#1e8449"),
-                               (0.275, "Moderate Risk", "#d35400"),
-                               (0.70,  "High Risk", "#922b21")]:
-            ax1.text(x, 0.52, label, ha="center", va="bottom", fontsize=8,
-                     color=col, fontweight="bold", transform=ax1.get_xaxis_transform())
-
-        # Confidence range bar
+        # ── Credible interval bar ────────────────────────────────────────────
         range_width = hi - lo
-        ax1.barh(0, range_width, left=lo, height=0.3, color="#2980b9",
-                 alpha=0.5, zorder=2, label=f"Likely range: {lo:.0%} – {hi:.0%}")
+        ax1.barh(0, range_width, left=lo, height=0.28, color="#2471a3",
+                 alpha=0.7, zorder=2)
 
-        # Point estimate marker
-        ax1.plot(mean_p, 0, "D", color="#1a5276", markersize=10, zorder=3,
-                 label=f"Your estimated risk: {mean_p:.0%}")
+        # End-cap ticks on the CI bar
+        for x_tick in [lo, hi]:
+            ax1.plot([x_tick, x_tick], [-0.14, 0.14], color="#2471a3",
+                     lw=2, zorder=3)
 
-        # Annotation arrow
+        # ── Point estimate diamond ───────────────────────────────────────────
+        ax1.plot(mean_p, 0, "D", color="#1a5276", markersize=11,
+                 zorder=4, markeredgecolor="white", markeredgewidth=1.5)
+
+        # ── Score label above diamond ────────────────────────────────────────
         ax1.annotate(
-            f"  Your score: {mean_p:.0%}",
-            xy=(mean_p, 0), xytext=(mean_p, 0.55),
-            fontsize=9, color="#1a5276", fontweight="bold", ha="center",
-            arrowprops=dict(arrowstyle="->", color="#1a5276", lw=1.5),
+            f"Your score\n{mean_p:.0%}",
+            xy=(mean_p, 0.14),
+            xytext=(mean_p, 0.38),
+            fontsize=9, color="#1a5276", fontweight="bold",
+            ha="center", va="bottom",
+            arrowprops=dict(arrowstyle="-|>", color="#1a5276", lw=1.2),
         )
 
+        # ── CI range label below bar ─────────────────────────────────────────
+        ax1.text((lo + hi) / 2, -0.22,
+                 f"Plausible range: {lo:.0%} to {hi:.0%}",
+                 ha="center", va="top", fontsize=8, color="#2471a3")
+
         ax1.set_xlim(0, 1)
-        ax1.set_ylim(-0.5, 1.0)
-        ax1.set_xlabel("Risk Score (0% = no risk  →  100% = highest risk)", fontsize=9)
+        ax1.set_ylim(-0.55, 0.85)
         ax1.set_yticks([])
-        ax1.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:.0%}"))
-        ax1.legend(fontsize=8, loc="lower right")
+        ax1.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{int(x*100)}%"))
+        ax1.tick_params(axis="x", labelsize=9)
+        ax1.set_xlabel("Risk probability  (0% = no risk → 100% = highest possible risk)",
+                       fontsize=9, labelpad=6)
         ax1.spines[["top", "right", "left"]].set_visible(False)
-        fig1.tight_layout()
+        ax1.spines["bottom"].set_linewidth(0.5)
+
         st.pyplot(fig1, use_container_width=True)
         plt.close(fig1)
 
         st.caption(
             f"The blue bar shows the plausible range ({lo:.0%} – {hi:.0%}). "
             f"The diamond marks your most likely score ({mean_p:.0%} — **{zone}**). "
-            "This range does not mean the risk is unknown; it reflects normal uncertainty in any health prediction."
+            "A wider bar means more uncertainty, often because some fields were left blank."
         )
 
         st.divider()
 
-        # ── Plot 2: What Is Driving Your Risk? (replaces forest plot) ────────
+        # ── Plot 2: What Is Driving Your Risk? ───────────────────────────────
         st.markdown("#### What Is Contributing to Your Risk?")
         st.caption(
-            "This chart shows which of your health factors are raising or lowering your estimated risk. "
-            "Longer bars mean a stronger influence. Factors shown in red are increasing risk; "
-            "factors in green are helping to lower it."
+            "Each bar shows how much a health factor is raising (red) or lowering (green) your risk. "
+            "Longer bars have a stronger influence. Only factors relevant to your profile are shown."
         )
 
-        # Convert log-odds coefficients × patient values to % risk contribution (relative magnitude)
         cov_arr = np.asarray(cov, dtype="float64")
         mu_arr  = np.asarray(mu,  dtype="float64")
 
@@ -500,58 +514,82 @@ def render_ci_plots(prob_samples: np.ndarray, mean_p: float, lo: float, hi: floa
             st.info("No individual factors to display.")
             return
 
-        feat_labels  = [pretty_feature(order[i]) for i in plot_indices]
+        feat_labels   = [pretty_feature(order[i]) for i in plot_indices]
         contributions = [mu_arr[i] * float(x_vec[i]) for i in plot_indices]
 
-        # Only show factors with non-zero patient values (present and meaningful)
         nonzero = [(lab, contrib) for lab, contrib in zip(feat_labels, contributions)
                    if abs(contrib) > 1e-4]
-
         if not nonzero:
             st.info("No individual risk factor contributions to display for this profile.")
             return
 
-        # Sort by absolute contribution descending
+        # Sort strongest first
         nonzero.sort(key=lambda x: abs(x[1]), reverse=True)
-        labels_nz = [x[0] for x in nonzero]
+        labels_nz   = [x[0] for x in nonzero]
         contribs_nz = [x[1] for x in nonzero]
-
-        colors_nz = ["#e74c3c" if c > 0 else "#27ae60" for c in contribs_nz]
-        bar_labels = [
-            ("Increases risk" if c > 0 else "Lowers risk")
-            for c in contribs_nz
-        ]
-
+        colors_nz   = ["#e05252" if c > 0 else "#2e9e6b" for c in contribs_nz]
         n = len(labels_nz)
-        fig2, ax2 = plt.subplots(figsize=(8, max(3.0, 0.45 * n)))
 
-        bars = ax2.barh(range(n), contribs_nz, color=colors_nz, alpha=0.8, edgecolor="white")
+        # ── Key fix: generous left margin so long labels don't overlap bars ──
+        # Compute longest label length to set left margin dynamically
+        max_label_len = max(len(l) for l in labels_nz)
+        left_margin   = min(0.55, max(0.35, max_label_len * 0.013))
 
-        # Value labels on bars
-        for i, (bar, contrib, bl) in enumerate(zip(bars, contribs_nz, bar_labels)):
-            xpos = contrib + (0.005 if contrib >= 0 else -0.005)
-            ha   = "left" if contrib >= 0 else "right"
-            ax2.text(xpos, i, bl, va="center", ha=ha, fontsize=8, color="#333")
+        row_height = 0.52   # inches per bar row
+        fig_height = max(4.0, n * row_height + 1.5)
+        fig2, ax2  = plt.subplots(figsize=(8, fig_height))
+        fig2.subplots_adjust(left=left_margin, right=0.88, top=0.92, bottom=0.06)
 
-        ax2.axvline(0, color="black", lw=1, alpha=0.4)
+        bars = ax2.barh(range(n), contribs_nz, color=colors_nz,
+                        alpha=0.85, edgecolor="white", height=0.55)
+
+        # "Raises risk" / "Lowers risk" label placed INSIDE or just outside bar
+        max_abs = max(abs(c) for c in contribs_nz) or 1
+        for i, (contrib, bl_color) in enumerate(zip(contribs_nz, colors_nz)):
+            bar_frac = abs(contrib) / max_abs
+            label_txt = "Raises risk" if contrib > 0 else "Lowers risk"
+            if bar_frac > 0.35:
+                # inside bar — white text
+                xpos = contrib * 0.5
+                ax2.text(xpos, i, label_txt, va="center", ha="center",
+                         fontsize=8, color="white", fontweight="500")
+            else:
+                # outside bar — coloured text
+                offset = max_abs * 0.03
+                xpos   = contrib + (offset if contrib >= 0 else -offset)
+                ha     = "left" if contrib >= 0 else "right"
+                ax2.text(xpos, i, label_txt, va="center", ha=ha,
+                         fontsize=8, color=bl_color)
+
+        # Centre line
+        ax2.axvline(0, color="#555", lw=0.8, alpha=0.5)
+
+        # Y-axis: factor labels, right-aligned, no tick marks
         ax2.set_yticks(range(n))
-        ax2.set_yticklabels(labels_nz, fontsize=9)
-        ax2.set_xlabel("Influence on your risk score", fontsize=9)
-        ax2.set_title(f"Factors Influencing Your {condition_label} Risk", fontsize=10, fontweight="bold")
-        ax2.xaxis.set_visible(False)  # hide raw numbers — only direction matters for lay users
-        ax2.spines[["top", "right", "bottom"]].set_visible(False)
+        ax2.set_yticklabels(labels_nz, fontsize=9, ha="right")
+        ax2.tick_params(axis="y", length=0, pad=6)
 
-        red_p  = mpatches.Patch(color="#e74c3c", alpha=0.8, label="Raising your risk")
-        grn_p  = mpatches.Patch(color="#27ae60", alpha=0.8, label="Lowering your risk")
-        ax2.legend(handles=[red_p, grn_p], fontsize=8, loc="lower right")
-        fig2.tight_layout()
+        # X-axis hidden (direction only matters)
+        ax2.xaxis.set_visible(False)
+        ax2.set_xlim(-max_abs * 1.25, max_abs * 1.25)
+
+        ax2.set_title(f"Factors Influencing Your {condition_label} Risk",
+                      fontsize=10, fontweight="bold", pad=10)
+        ax2.spines[["top", "right", "bottom", "left"]].set_visible(False)
+
+        # Legend
+        red_p = mpatches.Patch(color="#e05252", alpha=0.85, label="Raising your risk")
+        grn_p = mpatches.Patch(color="#2e9e6b", alpha=0.85, label="Lowering your risk")
+        ax2.legend(handles=[red_p, grn_p], fontsize=8, loc="lower right",
+                   framealpha=0.9, edgecolor="#ddd")
+
         st.pyplot(fig2, use_container_width=True)
         plt.close(fig2)
 
         st.caption(
-            "This chart shows the relative influence of each factor — not an absolute medical diagnosis. "
-            "Some factors (like age or family history) cannot be changed, but others (like smoking or "
-            "physical activity) are modifiable. Discuss these with your clinician."
+            "This chart shows the relative influence of each factor — not a medical diagnosis. "
+            "Modifiable factors (e.g. smoking, physical activity, stress) can be addressed "
+            "with lifestyle changes or clinical support. Discuss these findings with your clinician."
         )
 
 
@@ -607,6 +645,7 @@ with col2:
     sbp_na, dbp_na, hr_na = False, False, False
 
 st.caption("Fields marked [required] power the clinical urgency and safety triage check.")
+st.divider()
 
 # BMI badge
 bmi = None
@@ -618,12 +657,19 @@ if not h_na and not w_na and height_m and weight_kg and height_m > 0:
 
 # BP badge
 if not sbp_na and not dbp_na and systolic_bp is not None and diastolic_bp is not None:
-    bp_cat, bp_color, bp_note = categorize_bp(int(systolic_bp), int(diastolic_bp))
-    msg = f"BP: {int(systolic_bp)}/{int(diastolic_bp)} mmHg — {bp_cat} ({bp_note})"
-    if bp_color == "green":          st.success(msg)
-    elif bp_color in ("gold","orange"): st.warning(msg)
-    elif bp_color == "red":          st.error(msg)
-    else:                            st.info(msg)
+    if int(systolic_bp) < int(diastolic_bp):
+        st.warning(
+            f"BP: {int(systolic_bp)}/{int(diastolic_bp)} mmHg — "
+            "Systolic (top number) appears lower than Diastolic (bottom number). "
+            "Please check your values — they may be entered in the wrong order."
+        )
+    else:
+        bp_cat, bp_color, bp_note = categorize_bp(int(systolic_bp), int(diastolic_bp))
+        msg = f"BP: {int(systolic_bp)}/{int(diastolic_bp)} mmHg — {bp_cat} ({bp_note})"
+        if bp_color == "green":             st.success(msg)
+        elif bp_color in ("gold","orange"): st.warning(msg)
+        elif bp_color == "red":             st.error(msg)
+        else:                               st.info(msg)
 
 # HR badge
 if not hr_na and heart_rate is not None:
@@ -825,21 +871,42 @@ else:
         # Side-by-side panels
         left, right = st.columns(2)
         with left:
-            icons = {"routine": "🟢", "urgent": "🟡", "emergency": "🔴"}
-            st.subheader("Safety Check (independent of risk)")
-            st.markdown(f"**Clinical Urgency:** {icons.get(urgency,'⚪')} {urgency.upper()}")
-            st.caption("Safety Check recommends how quickly to seek care; the risk score is for the selected condition only.")
-            if reasons: st.caption("Reasons: " + "; ".join(reasons))
+            icons     = {"routine": "🟢", "urgent": "🟡", "emergency": "🔴"}
+            icon_word = {"routine": "Routine — no immediate concern",
+                         "urgent":  "Urgent — seek care today",
+                         "emergency": "Emergency — seek care now"}
+            st.subheader("Safety Check")
+            st.markdown(
+                f"**{icons.get(urgency,'⚪')} {icon_word.get(urgency, urgency.upper())}**"
+            )
+            st.caption(
+                "This check is based on your blood pressure, heart rate, and symptoms. "
+                "It tells you how quickly to seek care — independently of the risk score."
+            )
+            if reasons:
+                st.caption("Triggered by: " + "; ".join(reasons))
 
         with right:
             st.subheader(f"Condition Risk — {condition_label}")
-            st.metric("Risk Score", f"{mean_p*100:.1f}%")
-            st.markdown(f"**Probability:** {mean_p:.1%}")
-            st.markdown(f"**95% Credible Interval:** [{lo:.1%}, {hi:.1%}]")
+            st.metric(
+                label="Estimated Risk Score",
+                value=f"{mean_p*100:.1f}%",
+                help="This is your most likely risk estimate based on the information provided."
+            )
             st.progress(min(max(int(round(mean_p * 100)), 0), 100))
-            if cat == "High":       st.error("Risk Category: **HIGH**")
-            elif cat == "Moderate": st.warning("Risk Category: **MODERATE**")
-            else:                   st.success("Risk Category: **LOW**")
+
+            ci_text = f"Plausible range: {lo:.0%} – {hi:.0%}"
+            if cat == "High":
+                st.error(f"Risk Category: HIGH  |  {ci_text}")
+            elif cat == "Moderate":
+                st.warning(f"Risk Category: MODERATE  |  {ci_text}")
+            else:
+                st.success(f"Risk Category: LOW  |  {ci_text}")
+
+            st.caption(
+                f"The plausible range ({lo:.0%}–{hi:.0%}) shows the spread of uncertainty. "
+                "See the charts below for a full breakdown."
+            )
 
         if urgency in ("urgent","emergency") and cat == "Low":
             st.info("Why 'Urgent' with a low risk score? Safety Check uses vitals and red-flag symptoms to recommend how quickly to seek care. The risk score estimates the chance of this specific condition only. They are independent checks.")
